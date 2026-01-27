@@ -1,0 +1,342 @@
+= AIVULNHUNTER Documentation
+:toc:
+:toc-title: Table of Contents
+:source-highlighter: highlight.js
+:icons: font
+
+== Overview
+
+AIVULNHUNTER is an AI-powered vulnerability detection system for identifying security vulnerabilities in LLM applications and APIs. The system uses a multi-agent approach with rule-based detection and reinforcement learning for optimization.
+
+== Project Structure
+
+[source, tree]
+----
+AivulnHunter/
+├── backend/                    # FastAPI backend application
+│   ├── main.py                # Main application entry point
+│   ├── rules_manager.py       # Rules CRUD operations
+│   ├── auth.py                # Authentication module
+│   ├── admin_config.py        # Admin configuration
+│   ├── requirements.txt       # Python dependencies
+│   ├── rules/
+│   │   └── rules.json         # Vulnerability rules database
+│   ├── agents/
+│   │   └── observer.py        # Vulnerability explanation agent
+│   └── rl/
+│       └── learning.py        # RL-based rule scoring
+├── frontend/                  # Frontend interface
+│   ├── admin_login.html       # Admin login page
+│   ├── admin.html            # Rule management interface
+│   ├── rl.html               # RL statistics interface
+│   └── style.css             # Styling
+├── ai_redteam_project/       # Legacy/alternative implementation
+└── TODO.md                   # Project tasks
+----
+
+== Installation
+
+=== Prerequisites
+
+* Python 3.10+
+* pip
+* Git
+
+=== Setup
+
+[source, bash]
+----
+# Clone the repository
+git clone https://github.com/nanthitha25/AIVULNHUNTER.git
+cd AivulnHunter
+
+# Install dependencies
+cd backend
+pip install -r requirements.txt
+----
+
+== Usage
+
+=== Starting the Backend
+
+[source, bash]
+----
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+----
+
+The API will be available at: `http://localhost:8000`
+
+=== Frontend Access
+
+Open the following files in a browser:
+
+1. `frontend/admin_login.html` - Admin login page
+2. `frontend/admin.html` - Rule management (after login)
+3. `frontend/rl.html` - RL statistics
+
+== API Reference
+
+=== Authentication Endpoints
+
+==== POST /admin/login
+
+Authenticate and receive a token.
+
+[source, json]
+----
+Request:
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+Response:
+{
+  "token": "secure-admin-token"
+}
+----
+
+=== Rules Endpoints
+
+All rules endpoints require authentication via the `token` header.
+
+==== GET /admin/rules
+
+Retrieve all vulnerability rules.
+
+[source, bash]
+----
+curl -H "token: secure-admin-token" http://localhost:8000/admin/rules
+----
+
+==== POST /admin/rules
+
+Create a new rule.
+
+[source, bash]
+----
+curl -X POST -H "token: secure-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"New Rule","target_type":"LLM","risk":8,"owasp":"LLM01","enabled":true}' \
+  http://localhost:8000/admin/rules
+----
+
+==== PUT /admin/rules/{rule_id}
+
+Update an existing rule.
+
+[source, bash]
+----
+curl -X PUT -H "token: secure-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Updated Rule","risk":9}' \
+  http://localhost:8000/admin/rules/1
+----
+
+==== DELETE /admin/rules/{rule_id}
+
+Delete a rule.
+
+[source, bash]
+----
+curl -X DELETE -H "token: secure-admin-token" \
+  http://localhost:8000/admin/rules/1
+----
+
+== Rules Configuration
+
+Rules are stored in `backend/rules/rules.json`:
+
+[source, json]
+----
+[
+  {
+    "id": 1,
+    "name": "Prompt Injection",
+    "target_type": "LLM",
+    "risk": 8,
+    "owasp": "LLM01",
+    "enabled": true
+  },
+  {
+    "id": 2,
+    "name": "Broken Authentication",
+    "target_type": "API",
+    "risk": 7,
+    "owasp": "A02",
+    "enabled": true
+  }
+]
+----
+
+=== Rule Properties
+
+[cols="1,3"]
+|===
+| Property | Description
+
+| id
+| Unique rule identifier
+
+| name
+| Rule name (e.g., "Prompt Injection")
+
+| target_type
+| Target type (LLM or API)
+
+| risk
+| Risk level (1-10)
+
+| owasp
+| OWASP category identifier
+
+| enabled
+| Whether the rule is active
+|===
+
+== Admin Credentials
+
+[IMPORTANT]
+====
+Default credentials (change in production!):
+
+* **Username:** admin
+* **Password:** admin123
+* **Token:** secure-admin-token
+====
+
+File location: `backend/admin_config.py`
+
+== Modules
+
+=== rules_manager.py
+
+Handles all CRUD operations for vulnerability detection rules.
+
+[source, python]
+----
+def read_rules() -> List[Dict]:
+    """Read all rules from JSON file."""
+
+def add_rule(rule: Dict) -> Dict:
+    """Add a new rule with auto-assigned ID."""
+
+def update_rule(rule_id: int, data: Dict) -> Optional[Dict]:
+    """Update an existing rule."""
+
+def delete_rule(rule_id: int) -> bool:
+    """Delete a rule by ID."""
+----
+
+=== auth.py
+
+Authentication and token verification.
+
+[source, python]
+----
+def authenticate(username: str, password: str) -> Optional[str]:
+    """Validate credentials and return token."""
+
+def verify_token(token: str) -> bool:
+    """Verify if token is valid."""
+----
+
+=== agents/observer.py
+
+Vulnerability explanation and analysis.
+
+[source, python]
+----
+def explain(vulnerability: Dict) -> Dict:
+    """Generate explanation for a vulnerability."""
+
+def get_reason(vulnerability: Dict) -> str:
+    """Get the reason for a vulnerability."""
+
+def get_fix(vulnerability: Dict) -> str:
+    """Get recommended fix for a vulnerability."""
+----
+
+=== rl/learning.py
+
+Reinforcement learning for rule scoring.
+
+[source, python]
+----
+def update_rule(rule_id: int, score: float) -> Dict:
+    """Update rule score based on RL feedback."""
+
+def get_scores() -> Dict:
+    """Get all rule scores."""
+----
+
+== Frontend Usage
+
+=== Login Flow
+
+1. Open `frontend/admin_login.html`
+2. Enter credentials (admin/admin123)
+3. Token is stored in localStorage
+4. Redirect to admin.html
+
+=== Managing Rules
+
+[source, javascript]
+----
+const token = localStorage.getItem("adminToken");
+
+// Load rules
+fetch("http://localhost:8000/admin/rules", {
+  headers: { "token": token }
+});
+
+// Add new rule
+fetch("http://localhost:8000/admin/rules", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "token": token
+  },
+  body: JSON.stringify({
+    name: "New Rule",
+    target_type: "LLM",
+    risk: 8,
+    owasp: "LLM01",
+    enabled: true
+  })
+});
+----
+
+== Dependencies
+
+[source, txt]
+----
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+pydantic>=2.7.0
+----
+
+Full list in: `backend/requirements.txt`
+
+== Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make changes
+4. Push to GitHub
+5. Create a pull request
+
+== License
+
+This project is for educational and research purposes.
+
+== Author
+
+* Nanthitha Venkatachapathy
+
+== GitHub
+
+https://github.com/nanthitha25/AIVULNHUNTER
+
