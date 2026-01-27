@@ -1,0 +1,35 @@
+[
+  {
+    "application_name": "LLM Chatbot",
+    "type": "LLM",
+    "endpoint": "https://api.example-llm.com/chat",
+    "prompt_controls": false,
+    "logging": false,
+    "expected_vulnerabilities": [
+      "Prompt Injection",
+      "Sensitive Data Leakage"
+    ]
+  },
+  {
+    "application_name": "AI Agent System",
+    "type": "Agent",
+    "tool_access": "unrestricted",
+    "memory_isolation": false,
+    "expected_vulnerabilities": [
+      "Agent Escalation",
+      "Insecure Tool Use"
+    ]
+  },
+  {
+    "application_name": "REST AI API",
+    "type": "API",
+    "auth": "JWT",
+    "input_validation": false,
+    "rate_limit": false,
+    "expected_vulnerabilities": [
+      "Injection",
+      "Broken Authentication"
+    ]
+  }
+]
+

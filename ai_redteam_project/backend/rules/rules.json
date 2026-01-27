@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "name": "Prompt Injection",
+    "target_type": "LLM",
+    "risk": 8,
+    "owasp": "LLM01",
+    "enabled": true
+  },
+  {
+    "id": 2,
+    "name": "Broken Authentication",
+    "target_type": "API",
+    "risk": 7,
+    "owasp": "A02",
+    "enabled": true
+  }
+]
+

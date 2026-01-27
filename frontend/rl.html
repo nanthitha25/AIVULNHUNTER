@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RL Rule Priority</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h2>Reinforcement Learning – Rule Priority</h2>
+<button onclick="loadRL()">Load RL Stats</button>
+<pre id="rl"></pre>
+
+<script>
+async function loadRL() {
+  const res = await fetch("http://127.0.0.1:8000/rl/stats");
+  document.getElementById("rl").innerText =
+    JSON.stringify(await res.json(), null, 2);
+}
+</script>
+
+</body>
+</html>
+

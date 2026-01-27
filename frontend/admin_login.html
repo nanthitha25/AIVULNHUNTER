@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h2>Admin Login</h2>
+
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+
+<pre id="msg"></pre>
+
+<script>
+async function login() {
+  const res = await fetch("http://127.0.0.1:8000/admin/login", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      username: username.value,
+      password: password.value
+    })
+  });
+
+  const data = await res.json();
+  if (data.token) {
+    localStorage.setItem("adminToken", data.token);
+    document.getElementById("msg").innerText = "Login successful!";
+    // Redirect to admin page after short delay
+    setTimeout(() => window.location.href = "admin.html", 1000);
+  } else {
+    document.getElementById("msg").innerText = "Login failed";
+  }
+}
+</script>
+
+</body>
+</html>
+
+

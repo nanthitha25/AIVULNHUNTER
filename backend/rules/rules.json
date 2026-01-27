@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "name": "Prompt Injection",
+    "target_type": "LLM",
+    "risk": 8,
+    "owasp": "LLM01",
+    "enabled": true
+  },
+  {
+    "id": 2,
+    "name": "Broken Authentication",
+    "target_type": "API",
+    "risk": 7,
+    "owasp": "A02",
+    "enabled": true
+  },
+  {
+    "id": 3,
+    "name": "Insecure Output Handling",
+    "target_type": "LLM",
+    "risk": 6,
+    "owasp": "LLM02",
+    "enabled": true
+  },
+  {
+    "id": 4,
+    "name": "Training Data Poisoning",
+    "target_type": "LLM",
+    "risk": 9,
+    "owasp": "LLM03",
+    "enabled": false
+  }
+]
