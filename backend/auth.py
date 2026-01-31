@@ -4,7 +4,7 @@ Authentication Module
 Handles admin authentication using JWT tokens.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from jose import jwt
 from datetime import datetime, timedelta
@@ -95,4 +95,29 @@ def get_current_user(token: str = Depends(verify_token)):
         Username from the token
     """
     return token.get("sub")
+
+
+def verify_admin(authorization: str = Header(None)):
+    """Verify admin authorization token.
+    
+    Args:
+        authorization: Authorization header with Bearer token
+        
+    Returns:
+        Decoded token payload if valid
+        
+    Raises:
+        HTTPException: 401 if token missing/invalid, 403 if not admin
+    """
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing token")
+
+    try:
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, SECRET, algorithms=[ALGO])
+        if payload.get("role") != "admin":
+            raise HTTPException(status_code=403)
+        return payload
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
