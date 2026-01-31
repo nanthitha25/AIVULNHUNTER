@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Header, HTTPException
-import json, uuid
-from auth import verify_token
+from fastapi import APIRouter, Depends
+from auth import verify_admin
+import json
 
 router = APIRouter()
 RULES_PATH = "rules/rules.json"
@@ -14,36 +14,29 @@ def save_rules(rules):
         json.dump(rules, f, indent=2)
 
 @router.get("/admin/rules")
-def get_rules(authorization: str = Header(...)):
-    """Get all rules (requires JWT authentication).
+def get_rules(admin=Depends(verify_admin)):
+    """Get all rules (requires admin authentication).
     
     Args:
-        authorization: Bearer token in Authorization header
+        admin: Verified admin from JWT token
         
     Returns:
         List of all rules
-        
-    Raises:
-        HTTPException: 401 if token is invalid
     """
-    verify_token(authorization.replace("Bearer ", ""))
     return load_rules()
 
 @router.post("/admin/rules")
-def create_rule(rule: dict, authorization: str = Header(...)):
-    """Create a new rule (requires JWT authentication).
+def create_rule(rule: dict, admin=Depends(verify_admin)):
+    """Create a new rule (requires admin authentication).
     
     Args:
         rule: Rule data to create
-        authorization: Bearer token in Authorization header
+        admin: Verified admin from JWT token
         
     Returns:
         Created rule with ID
-        
-    Raises:
-        HTTPException: 401 if token is invalid
     """
-    verify_token(authorization.replace("Bearer ", ""))
+    import uuid
     rules = load_rules()
     rule["id"] = rule.get("id", str(uuid.uuid4()))
     rules.append(rule)
@@ -51,21 +44,17 @@ def create_rule(rule: dict, authorization: str = Header(...)):
     return rule
 
 @router.put("/admin/rules/{rule_id}")
-def update_rule(rule_id: str, updated: dict, authorization: str = Header(...)):
-    """Update an existing rule (requires JWT authentication).
+def update_rule(rule_id: str, updated: dict, admin=Depends(verify_admin)):
+    """Update an existing rule (requires admin authentication).
     
     Args:
         rule_id: ID of rule to update
         updated: Updated rule data
-        authorization: Bearer token in Authorization header
+        admin: Verified admin from JWT token
         
     Returns:
         Status message
-        
-    Raises:
-        HTTPException: 401 if token is invalid
     """
-    verify_token(authorization.replace("Bearer ", ""))
     rules = load_rules()
     for r in rules:
         if r["id"] == rule_id:
@@ -74,20 +63,16 @@ def update_rule(rule_id: str, updated: dict, authorization: str = Header(...)):
     return {"status": "updated"}
 
 @router.delete("/admin/rules/{rule_id}")
-def delete_rule(rule_id: str, authorization: str = Header(...)):
-    """Delete a rule (requires JWT authentication).
+def delete_rule(rule_id: str, admin=Depends(verify_admin)):
+    """Delete a rule (requires admin authentication).
     
     Args:
         rule_id: ID of rule to delete
-        authorization: Bearer token in Authorization header
+        admin: Verified admin from JWT token
         
     Returns:
         Status message
-        
-    Raises:
-        HTTPException: 401 if token is invalid
     """
-    verify_token(authorization.replace("Bearer ", ""))
     rules = load_rules()
     rules = [r for r in rules if r["id"] != rule_id]
     save_rules(rules)
