@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin – Vulnerability Rules</title>
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+
+<h2>Admin – Vulnerability Rules</h2>
+
+<button onclick="openModal()">➕ Add Rule</button>
+
+<table id="rulesTable">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>OWASP</th>
+      <th>Severity</th>
+      <th>Priority</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<!-- MODAL -->
+<div id="ruleModal" class="modal">
+  <div class="modal-content">
+    <h3 id="modalTitle">Add Rule</h3>
+
+    <input id="ruleName" placeholder="Rule Name" />
+    <input id="ruleOWASP" placeholder="OWASP ID (LLM01)" />
+    <select id="ruleSeverity">
+      <option>LOW</option>
+      <option>MEDIUM</option>
+      <option>HIGH</option>
+      <option>CRITICAL</option>
+    </select>
+    <input id="rulePriority" type="number" step="0.1" placeholder="Priority (0–1)" />
+
+    <div class="modal-actions">
+      <button onclick="saveRule()">Save</button>
+      <button onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/admin.js"></script>
+</body>
+</html>
