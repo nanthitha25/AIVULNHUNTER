@@ -1,131 +1,103 @@
-// Admin functionality for RedTeam AI
-
-const API_URL = API; // Uses the API constant from api.js
-
-// Get auth headers with Bearer token
-function getAuthHeaders() {
-  const token = localStorage.getItem("admin_token");
-  return {
-    "Content-Type": "application/json",
-    ...(token && { "Authorization": `Bearer ${token}` })
-  };
-}
-
-let currentRules = [];
+const API = "http://127.0.0.1:8000";
 let editingRuleId = null;
 
-// Load rules on page load
-document.addEventListener("DOMContentLoaded", loadRules);
-
-async function loadRules() {
-  try {
-    const res = await fetch(`${API_URL}/admin/rules`, {
-      headers: getAuthHeaders()
-    });
-    currentRules = await res.json();
-    renderRulesTable();
-  } catch (err) {
-    console.error("Error loading rules:", err);
-  }
+/* 🔐 PROTECT PAGE */
+const token = localStorage.getItem("admin_token");
+if (!token) {
+  window.location.href = "admin.html";
 }
 
-function renderRulesTable() {
+/* LOAD RULES */
+async function loadRules() {
+  const res = await fetch(API + "/admin/rules", {
+    headers: {
+      "Authorization": "Bearer " + token
+    }
+  });
+
+  const rules = await res.json();
   const tbody = document.querySelector("#rulesTable tbody");
   tbody.innerHTML = "";
 
-  currentRules.forEach(rule => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${rule.id || rule.name?.substring(0, 8)}</td>
-      <td>${rule.name || "Unnamed"}</td>
-      <td>${rule.owasp || rule.owasp_reference || "N/A"}</td>
-      <td>${rule.severity || rule.risk || "MEDIUM"}</td>
-      <td>${(rule.priority || rule.q_value || 0.5).toFixed(2)}</td>
-      <td>
-        <button onclick="editRule('${rule.id}')">Edit</button>
-        <button onclick="deleteRule('${rule.id}')" class="danger">Delete</button>
-      </td>
+  rules.forEach(r => {
+    tbody.innerHTML += `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.name}</td>
+        <td>${r.owasp}</td>
+        <td>${r.severity}</td>
+        <td>${r.priority}</td>
+        <td>
+          <button onclick='editRule(${JSON.stringify(r)})'>✏️</button>
+          <button onclick='deleteRule("${r.id}")'>🗑️</button>
+        </td>
+      </tr>
     `;
-    tbody.appendChild(tr);
   });
 }
 
-function openRuleModal(isEdit = false) {
+/* MODAL CONTROL */
+function openModal() {
+  editingRuleId = null;
+  document.getElementById("ruleName").value = "";
+  document.getElementById("ruleOWASP").value = "";
+  document.getElementById("ruleSeverity").value = "LOW";
+  document.getElementById("rulePriority").value = "";
   document.getElementById("ruleModal").style.display = "block";
-  document.getElementById("modalTitle").innerText = isEdit ? "Edit Rule" : "Add Rule";
-  editingRuleId = isEdit ? isEdit : null;
 }
 
 function closeModal() {
   document.getElementById("ruleModal").style.display = "none";
-  clearModalForm();
 }
 
-function clearModalForm() {
-  document.getElementById("ruleName").value = "";
-  document.getElementById("ruleOWASP").value = "";
-  document.getElementById("ruleSeverity").value = "MEDIUM";
+function editRule(rule) {
+  editingRuleId = rule.id;
+  document.getElementById("ruleName").value = rule.name;
+  document.getElementById("ruleOWASP").value = rule.owasp;
+  document.getElementById("ruleSeverity").value = rule.severity;
+  document.getElementById("rulePriority").value = rule.priority;
+  document.getElementById("ruleModal").style.display = "block";
 }
 
-function editRule(ruleId) {
-  const rule = currentRules.find(r => r.id === ruleId);
-  if (rule) {
-    document.getElementById("ruleName").value = rule.name || "";
-    document.getElementById("ruleOWASP").value = rule.owasp || rule.owasp_reference || "";
-    document.getElementById("ruleSeverity").value = rule.severity || rule.risk || "MEDIUM";
-    openRuleModal(ruleId);
-  }
-}
-
+/* SAVE RULE */
 async function saveRule() {
-  const ruleData = {
+  const payload = {
     name: document.getElementById("ruleName").value,
     owasp: document.getElementById("ruleOWASP").value,
     severity: document.getElementById("ruleSeverity").value,
-    enabled: true
+    priority: parseFloat(document.getElementById("rulePriority").value)
   };
 
-  try {
-    if (editingRuleId) {
-      await fetch(`${API_URL}/admin/rules/${editingRuleId}`, {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(ruleData)
-      });
-    } else {
-      await fetch(`${API_URL}/admin/rules`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(ruleData)
-      });
+  const url = editingRuleId
+    ? `${API}/admin/rules/${editingRuleId}`
+    : `${API}/admin/rules`;
+
+  await fetch(url, {
+    method: editingRuleId ? "PUT" : "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify(payload)
+  });
+
+  closeModal();
+  loadRules();
+}
+
+/* DELETE RULE */
+async function deleteRule(id) {
+  if (!confirm("Delete this rule?")) return;
+
+  await fetch(`${API}/admin/rules/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": "Bearer " + token
     }
-    closeModal();
-    loadRules();
-  } catch (err) {
-    console.error("Error saving rule:", err);
-    alert("Error saving rule: " + err.message);
-  }
+  });
+
+  loadRules();
 }
 
-async function deleteRule(ruleId) {
-  if (!confirm("Are you sure you want to delete this rule?")) return;
-
-  try {
-    await fetch(`${API_URL}/admin/rules/${ruleId}`, {
-      method: "DELETE",
-      headers: getAuthHeaders()
-    });
-    loadRules();
-  } catch (err) {
-    console.error("Error deleting rule:", err);
-    alert("Error deleting rule: " + err.message);
-  }
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-  const modal = document.getElementById("ruleModal");
-  if (event.target === modal) {
-    closeModal();
-  }
-};
+/* INIT */
+loadRules();
