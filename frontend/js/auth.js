@@ -9,7 +9,7 @@ async function login() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(`${API_BASE}/admin/login`, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
