@@ -1,24 +1,22 @@
-"""
-Rules Management API
-
-FastAPI application for managing vulnerability detection rules.
-Provides REST endpoints for CRUD operations on rules with authentication.
-"""
-
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+import os
+import json
+import asyncio
+from scan_api import router as scan_router
+from rules_api import router as rules_router
+from auth import router as auth_router
+from report_generator import generate_report
+from admin_config import ADMIN_USERNAME, ADMIN_PASSWORD
 
-from rules_manager import (
-    read_rules,
-    add_rule,
-    update_rule,
-    delete_rule
-)
-from auth import authenticate, verify_token
+# Ensure reports directory exists
+os.makedirs("reports", exist_ok=True)
 
-app = FastAPI()
+app = FastAPI(title="AivulnHunter API")
 
-# CORS middleware for frontend access
+# Allow frontend access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,110 +24,75 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(scan_router)
+app.include_router(rules_router)
+app.include_router(auth_router, prefix="/auth")
 
-@app.post("/admin/login")
-def admin_login(credentials: dict):
-    """Admin login endpoint.
+
+@app.websocket("/ws/scan/{target_id}")
+async def scan_ws(ws: WebSocket, target_id: str):
+    """WebSocket endpoint for real-time scan progress.
+    
+    Streams agent status updates during vulnerability scanning.
     
     Args:
-        credentials: Dictionary with username and password
-        
-    Returns:
-        Token if credentials are valid
-        
-    Raises:
-        HTTPException: If credentials are invalid
+        ws: WebSocket connection
+        target_id: Target system ID being scanned
     """
-    token = authenticate(
-        credentials.get("username"),
-        credentials.get("password")
-    )
-    if not token:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"token": token}
+    await ws.accept()
 
+    await ws.send_json({"agent": "profile", "status": "RUNNING"})
+    await asyncio.sleep(1)
 
-@app.get("/admin/rules")
-def get_rules(token: str = Header(...)):
-    """Get all rules (requires authentication).
+    await ws.send_json({"agent": "strategy", "status": "RUNNING"})
+    await asyncio.sleep(1)
+
+    await ws.send_json({"agent": "exec", "status": "RUNNING"})
+    await asyncio.sleep(1)
+
+    await ws.send_json({"agent": "observer", "status": "RUNNING"})
+    await asyncio.sleep(1)
+
+    await ws.send_json({"done": True})
+
+@app.post("/report/pdf")
+def generate_pdf_report(data: dict):
+    """Generate PDF report from scan data."""
+    generate_report(data, "report.pdf")
+    return {"status": "PDF generated", "file": "report.pdf"}
+
+@app.get("/report/pdf")
+def download_pdf():
+    """Download the generated PDF report."""
+    return FileResponse("report.pdf", filename="ai_vulnerability_report.pdf")
+
+@app.get("/report/{scan_id}")
+def generate_pdf_by_scan_id(scan_id: str):
+    """Generate and download PDF report for a specific scan ID."""
+    file_path = f"reports/{scan_id}.pdf"
+    generate_report({"target": scan_id, "results": []}, file_path)
+    return FileResponse(file_path, filename=f"scan_report_{scan_id}.pdf")
+
+@app.get("/rl/priorities")
+def get_rl_priorities():
+    """Get RL-learned rule priorities sorted by priority.
     
-    Args:
-        token: Admin token from header
-        
     Returns:
-        List of all rules
-        
-    Raises:
-        HTTPException: If token is invalid
+        List of rule priority scores from Q-learning:
+        [{"rule": "Prompt Injection", "priority": 0.92}, ...]
     """
-    if not verify_token(token):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    return read_rules()
-
-
-@app.post("/admin/rules")
-def create_rule(rule: dict, token: str = Header(...)):
-    """Create a new rule (requires authentication).
-    
-    Args:
-        rule: Rule data
-        token: Admin token from header
+    try:
+        with open("rl/rule_scores.json") as f:
+            scores = json.load(f)
         
-    Returns:
-        The created rule with assigned ID
+        # Convert to array format sorted by priority (descending)
+        priorities = [
+            {"rule": rule, "priority": round(score, 2)}
+            for rule, score in scores.items()
+        ]
+        priorities.sort(key=lambda x: x["priority"], reverse=True)
         
-    Raises:
-        HTTPException: If token is invalid
-    """
-    if not verify_token(token):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    return add_rule(rule)
-
-
-@app.put("/admin/rules/{rule_id}")
-def edit_rule(rule_id: int, rule: dict, token: str = Header(...)):
-    """Update an existing rule (requires authentication).
-    
-    Args:
-        rule_id: ID of the rule to update
-        rule: Updated rule data
-        token: Admin token from header
-        
-    Returns:
-        The updated rule dictionary
-        
-    Raises:
-        HTTPException: If token is invalid or rule not found
-    """
-    if not verify_token(token):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    updated = update_rule(rule_id, rule)
-    if not updated:
-        return {"error": "Rule not found"}
-    return updated
-
-
-@app.delete("/admin/rules/{rule_id}")
-def remove_rule(rule_id: int, token: str = Header(...)):
-    """Delete a rule (requires authentication).
-    
-    Args:
-        rule_id: ID of the rule to delete
-        token: Admin token from header
-        
-    Returns:
-        Success message
-        
-    Raises:
-        HTTPException: If token is invalid
-    """
-    if not verify_token(token):
-        raise HTTPException(status_code=403, detail="Unauthorized")
-    delete_rule(rule_id)
-    return {"message": "Rule deleted"}
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        return priorities
+    except FileNotFoundError:
+        return []
 

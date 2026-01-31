@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>AivulnHunter – Red Team AI</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<header>
+  <h2>🛡️ RedTeam AI</h2>
+  <nav>
+    <a href="agents.html">Agents</a>
+    <a href="scan.html">Scan</a>
+    <a href="admin_login.html">Admin</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>Red Teaming for AI System Vulnerability</h1>
+  <p>Explainable AI security testing using multi-agent architecture</p>
+</section>
+
+<section class="scan-container">
+  <h2>🔍 AI Vulnerability Scan</h2>
+  
+  <div class="scan-input-group">
+    <input id="targetId" value="llm_001" placeholder="Enter Target ID">
+    <button class="start-btn" onclick="startScan()">Start Scan</button>
+  </div>
+  
+  <pre id="output" style="background: #15151f; padding: 20px; border-radius: 8px; color: #a0a0b0;"></pre>
+</section>
+
+<section class="modules">
+  <div class="card"><i class="fa-solid fa-bullseye"></i> Target Profiling Agent</div>
+  <div class="card"><i class="fa-solid fa-chess-knight"></i> Attack Strategy Agent</div>
+  <div class="card"><i class="fa-solid fa-bug"></i> Exploitation Agent</div>
+  <div class="card"><i class="fa-solid fa-eye"></i> Observer Agent</div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
+

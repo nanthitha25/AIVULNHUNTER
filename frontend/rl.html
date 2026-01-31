@@ -1,21 +1,57 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8" />
   <title>RL Rule Priority</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
+<button onclick="window.location.href='index.html'">
+  <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+</button>
+
+<h2><i class="fa-solid fa-brain"></i> Rule Priority Learning</h2>
+<canvas id="rlChart"></canvas>
+
 <h2>Reinforcement Learning – Rule Priority</h2>
-<button onclick="loadRL()">Load RL Stats</button>
+<button onclick="loadRL()"><i class="fa-solid fa-chart-simple"></i> Load RL Stats</button>
 <pre id="rl"></pre>
 
+<script src="js/config.js"></script>
 <script>
 async function loadRL() {
-  const res = await fetch("http://127.0.0.1:8000/rl/stats");
-  document.getElementById("rl").innerText =
-    JSON.stringify(await res.json(), null, 2);
+  const res = await fetch(API + "/rl/priorities");
+  const data = await res.json();
+
+  // Display JSON data
+  document.getElementById("rl").innerText = JSON.stringify(data, null, 2);
+
+  // Create chart
+  new Chart(document.getElementById("rlChart"), {
+    type: "bar",
+    data: {
+      labels: data.map(d => d.rule),
+      datasets: [{
+        label: "Rule Priority",
+        data: data.map(d => d.priority),
+        backgroundColor: "#00ffb3"
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 1.0
+        }
+      }
+    }
+  });
 }
+
+loadRL();
 </script>
 
 </body>

@@ -1,10 +1,73 @@
 """
 Authentication Module
 
-Handles admin authentication using credentials from admin_config.
+Handles admin authentication using JWT tokens.
 """
 
-from admin_config import ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_TOKEN
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from jose import jwt
+from datetime import datetime, timedelta
+from admin_config import ADMIN_USERNAME, ADMIN_PASSWORD
+
+SECRET = "REDTEAM_SECRET"
+ALGO = "HS256"
+
+router = APIRouter()
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def create_access_token(payload: dict):
+    """Create a JWT token for the authenticated user.
+    
+    Args:
+        payload: Token payload with user info
+        
+    Returns:
+        JWT token string
+    """
+    payload["exp"] = datetime.utcnow() + timedelta(hours=2)
+    return jwt.encode(payload, SECRET, algorithm=ALGO)
+
+
+def verify_token(token: str):
+    """Verify and decode a JWT token.
+    
+    Args:
+        token: JWT token to verify
+        
+    Returns:
+        Decoded token payload if valid
+        
+    Raises:
+        HTTPException: If token is invalid
+    """
+    try:
+        return jwt.decode(token, SECRET, algorithms=[ALGO])
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@router.post("/login")
+def login(data: LoginRequest):
+    """Authenticate admin user and return JWT token.
+    
+    Args:
+        data: Login credentials (username and password)
+        
+    Returns:
+        JWT access token on successful authentication
+        
+    Raises:
+        HTTPException: 401 if credentials are invalid
+    """
+    if data.username == ADMIN_USERNAME and data.password == ADMIN_PASSWORD:
+        token = create_access_token({"sub": "admin"})
+        return {"access_token": token}
+    raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 def authenticate(username: str, password: str):
@@ -15,21 +78,21 @@ def authenticate(username: str, password: str):
         password: Admin password
         
     Returns:
-        Admin token if credentials are valid, None otherwise
+        JWT token if credentials are valid, None otherwise
     """
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        return ADMIN_TOKEN
+        return create_access_token({"sub": username})
     return None
 
 
-def verify_token(token: str):
-    """Verify if the provided token is valid.
+def get_current_user(token: str = Depends(verify_token)):
+    """Get the current user from the JWT token.
     
     Args:
-        token: Token to verify
+        token: JWT token from Authorization header
         
     Returns:
-        True if token is valid, False otherwise
+        Username from the token
     """
-    return token == ADMIN_TOKEN
+    return token.get("sub")
 

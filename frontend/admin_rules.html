@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Rules - AivulnHunter</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<header>
+  <h2>🛡️ RedTeam AI</h2>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="agents.html">Agents</a>
+    <a href="scan.html">Scan</a>
+    <a href="admin_login.html">Logout</a>
+  </nav>
+</header>
+
+<div class="container">
+  <h2><i class="fa-solid fa-list-check"></i> Admin – Vulnerability Rules</h2>
+  
+  <button onclick="loadRules()"><i class="fa-solid fa-upload"></i> Load Rules</button>
+  <button onclick="logout()" class="danger"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+  
+  <pre id="rulesOutput"></pre>
+  
+  <h3>Add New Rule</h3>
+  <div class="scan-input-group">
+    <input id="ruleName" placeholder="Rule Name">
+    <input id="ruleType" placeholder="Target Type (LLM/API)">
+    <input id="ruleRisk" type="number" placeholder="Risk (1-10)">
+    <input id="ruleOwasp" placeholder="OWASP ID">
+    <button onclick="addRule()"><i class="fa-solid fa-plus"></i> Add Rule</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/admin.js"></script>
+
+</body>
+</html>
+

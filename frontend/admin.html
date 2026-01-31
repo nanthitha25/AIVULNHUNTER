@@ -1,79 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Admin – Vulnerability Rules</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <title>Admin | RedTeam AI</title>
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<h2>Admin – Vulnerability Rules</h2>
+<h1>🛡️ Vulnerability Rules (Admin)</h1>
 
-<button onclick="loadRules()">Load Rules</button>
-<button onclick="logout()">Logout</button>
+<button onclick="openRuleModal()"><i class="fa-solid fa-plus"></i> Add Rule</button>
 
-<pre id="rules"></pre>
+<table id="rulesTable">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>OWASP</th>
+      <th>Severity</th>
+      <th>Priority</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-<h3>Add Rule</h3>
-<input id="name" placeholder="Rule Name">
-<input id="type" placeholder="Target Type (LLM/API)">
-<input id="risk" placeholder="Risk (1-10)">
-<input id="owasp" placeholder="OWASP ID">
-<button onclick="addRule()">Add</button>
+<!-- Modal -->
+<div id="ruleModal" class="modal">
+  <div class="modal-content">
+    <h3 id="modalTitle">Add Rule</h3>
+    <input id="ruleName" placeholder="Rule Name" />
+    <input id="ruleOWASP" placeholder="OWASP ID" />
+    <select id="ruleSeverity">
+      <option>LOW</option>
+      <option>MEDIUM</option>
+      <option>HIGH</option>
+      <option>CRITICAL</option>
+    </select>
+    <button onclick="saveRule()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+</div>
 
-<script>
-async function loadRules() {
-  const token = localStorage.getItem("adminToken");
-  if (!token) {
-    document.getElementById("rules").innerText = "Please login first";
-    return;
-  }
-
-  const res = await fetch("http://127.0.0.1:8000/admin/rules", {
-    headers: {
-      "token": token
-    }
-  });
-  
-  if (res.status === 403) {
-    document.getElementById("rules").innerText = "Session expired. Please login again.";
-    return;
-  }
-  
-  document.getElementById("rules").innerText =
-    JSON.stringify(await res.json(), null, 2);
-}
-
-async function addRule() {
-  const token = localStorage.getItem("adminToken");
-  if (!token) {
-    alert("Please login first");
-    return;
-  }
-
-  await fetch("http://127.0.0.1:8000/admin/rules", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "token": token
-    },
-    body: JSON.stringify({
-      name: name.value,
-      target_type: type.value,
-      risk: parseInt(risk.value),
-      owasp: owasp.value,
-      enabled: true
-    })
-  });
-  loadRules();
-}
-
-function logout() {
-  localStorage.removeItem("adminToken");
-  window.location.href = "admin_login.html";
-}
-</script>
-
+<script src="js/api.js"></script>
+<script src="js/admin.js"></script>
 </body>
 </html>
-
 
