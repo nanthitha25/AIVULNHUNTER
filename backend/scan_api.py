@@ -28,37 +28,73 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
 @router.post("/scan")
-async def scan_target(target_id: str, target_type: str = "llm", admin: str = Depends(get_current_admin)):
+async def scan_target(
+    target_id: str, 
+    target_type: str = "llm", 
+    admin: str = Depends(get_current_admin)
+):
     """
     Start a vulnerability scan on the target with real-time progress updates.
     
+    This endpoint supports both:
+    1. Dataset-based scans: Use a target_id that exists in ai_systems.json
+    2. URL-based scans: Use any URL as target_id (will be probed in real-time)
+    
     Pipeline:
-    1. Target Profiling Agent - 25%
+    1. Target Profiling Agent - 25% (probes the target in real-time)
     2. Attack Strategy Agent - 50%
     3. Attack Execution Agent - 75%
     4. Analysis & XAI Agent - 100%
+    
+    Args:
+        target_id: Either a dataset ID (e.g., "llm_001") or a URL (e.g., "http://localhost:9000/chat")
+        target_type: Scan type (llm, api, quick, full)
+        admin: Authenticated admin user
+        
+    Returns:
+        Scan results with profile, attacks, and analysis
     """
-    # 1️⃣ Load dataset
-    if not os.path.exists(DATASET_PATH):
-        raise HTTPException(status_code=500, detail="Dataset missing")
+    # Check if target_id is a URL or dataset ID
+    is_url = target_id.startswith("http://") or target_id.startswith("https://")
+    
+    if is_url:
+        # URL-based scanning - probe the target directly
+        target = {
+            "id": target_id,
+            "name": target_id,
+            "type": "LIVE_URL",
+            "url": target_id
+        }
+    else:
+        # Dataset-based scanning
+        if not os.path.exists(DATASET_PATH):
+            raise HTTPException(status_code=500, detail="Dataset missing")
 
-    with open(DATASET_PATH) as f:
-        systems = json.load(f)
+        with open(DATASET_PATH) as f:
+            systems = json.load(f)
 
-    if target_id not in systems:
-        raise HTTPException(status_code=404, detail="Target not found")
+        if target_id not in systems:
+            raise HTTPException(status_code=404, detail="Target not found")
 
-    target = systems[target_id]
+        target = systems[target_id]
     
     # Generate scan_id early for WebSocket tracking
     scan_id = str(uuid.uuid4())
 
     # 2️⃣ Run agents with WebSocket progress updates
     
-    # Step 1: Target Profiling (25%)
-    await manager.send_progress(scan_id, "Target Profiling", 25, "Analyzing target system...")
-    profile = target_profiling(target)
-    await manager.send_progress(scan_id, "Target Profiling", 25, f"Profile: {profile.get('type', 'Unknown')}")
+    # Step 1: Target Profiling (25%) - REAL-TIME PROBING
+    await manager.send_progress(scan_id, "Target Profiling", 25, "Probing target system...")
+    profile = target_profiling(target_id if is_url else target.get("url", target_id))
+    
+    # Show target info in progress
+    reachability = "Reachable" if profile.get("reachable") else "Unreachable"
+    await manager.send_progress(
+        scan_id, 
+        "Target Profiling", 
+        25, 
+        f"{reachability} - {profile.get('type', 'UNKNOWN')}"
+    )
     
     # Step 2: Attack Strategy (50%)
     await manager.send_progress(scan_id, "Attack Strategy", 50, "Building attack plan...")
@@ -69,16 +105,19 @@ async def scan_target(target_id: str, target_type: str = "llm", admin: str = Dep
     total_attacks = len(attacks)
     await manager.send_progress(scan_id, "Attack Execution", 55, f"Executing {total_attacks} security checks...")
     
-    execution_results = execute_attacks(attacks)
+    # Execute attacks against the target URL
+    target_url = target_id if is_url else target.get("url", target_id)
+    execution_results = execute_attacks(attacks, target_url)
     
     for i, result in enumerate(execution_results):
         # Progress from 55% to 75%
         attack_progress = 55 + (20 * (i + 1) / max(total_attacks, 1))
+        status_indicator = "[VULNERABLE]" if result.get("status") == "VULNERABLE" else "[SECURE]"
         await manager.send_progress(
             scan_id, 
             "Attack Execution", 
             int(attack_progress),
-            f"Running: {result.get('attack', f'Attack {i+1}')}"
+            f"{status_indicator} {result.get('attack', f'Attack {i+1}')}"
         )
     
     # Step 4: Analysis & XAI (100%)
@@ -93,10 +132,13 @@ async def scan_target(target_id: str, target_type: str = "llm", admin: str = Dep
         "scan_id": scan_id,
         "timestamp": timestamp,
         "target": target,
+        "target_url": target_url,
         "profile": profile,
         "attacks": attacks,
         "results": analysis,
-        "explainable_ai": analysis
+        "explainable_ai": analysis,
+        "scan_type": target_type,
+        "is_live_scan": is_url
     }
     
     scans[scan_id] = scan_result
@@ -109,11 +151,13 @@ async def scan_target(target_id: str, target_type: str = "llm", admin: str = Dep
         "scan_id": scan_id,
         "timestamp": timestamp,
         "target": target,
+        "target_url": target_url,
         "profile": profile,
         "attacks": attacks,
         "results": analysis,
         "explainable_ai": analysis,
-        "report_url": f"/scan/{scan_id}/report"
+        "report_url": f"/scan/{scan_id}/report",
+        "is_live_scan": is_url
     }
 
 
@@ -149,5 +193,36 @@ def download_scan_report(scan_id: str, admin: str = Depends(get_current_admin)):
 @router.get("/scans")
 def list_scans(admin: str = Depends(get_current_admin)):
     """List all scans"""
-    return [{"scan_id": sid, "timestamp": s["timestamp"]} for sid, s in scans.items()]
+    return [
+        {
+            "scan_id": sid, 
+            "timestamp": s["timestamp"], 
+            "target_url": s.get("target_url", s.get("target", {}).get("name", "Unknown")),
+            "is_live_scan": s.get("is_live_scan", False)
+        } 
+        for sid, s in scans.items()
+    ]
+
+
+@router.post("/scan/quick")
+async def quick_scan(target_url: str, admin: str = Depends(get_current_admin)):
+    """
+    Quick health check scan for a target URL.
+    
+    Performs basic reachability and type detection without full attack execution.
+    """
+    scan_id = str(uuid.uuid4())
+    
+    # Quick profiling
+    await manager.send_progress(scan_id, "Quick Check", 25, "Probing target...")
+    profile = target_profiling(target_url)
+    
+    await manager.send_progress(scan_id, "Quick Check", 100, "Complete!")
+    
+    return {
+        "scan_id": scan_id,
+        "target_url": target_url,
+        "profile": profile,
+        "status": "completed"
+    }
 

@@ -9,23 +9,43 @@
 <body>
 
 <header>
-  <h2>🛡️ RedTeam AI</h2>
+  <h2>🛡️ AivulnHunter</h2>
   <nav>
     <a href="index.html">Home</a>
     <a href="agents.html">Agents</a>
-    <a href="scan.html">Scan</a>
+    <a href="scan.html" class="active">Scan</a>
+    <a href="rl.html">RL Heatmap</a>
     <a href="admin_login.html">Admin</a>
   </nav>
 </header>
 
 <div class="scan-container">
   <h2>🔍 AI Vulnerability Scan</h2>
+  <p class="subtitle">Real-time security testing for LLM APIs and AI systems</p>
   
   <div class="scan-input-group">
-    <input id="targetId" placeholder="Enter Target ID (llm_001)">
-    <button class="start-btn" onclick="startScan()">Start Scan</button>
-    <button class="download-btn" onclick="downloadReport(targetId.value)" style="display: none;" id="downloadPdfBtn">📄 Download PDF</button>
+    <label for="scanTarget">Target URL</label>
+    <input id="scanTarget" placeholder="http://localhost:9000/chat">
+    <span class="hint">Enter LLM or API endpoint URL</span>
   </div>
+  
+  <div class="scan-type-group">
+    <label>Scan Type:</label>
+    <select id="scanType">
+      <option value="FULL">Full Security Scan</option>
+      <option value="LLM">LLM-Specific (Prompt Injection, Output Handling)</option>
+      <option value="API">API Security Check</option>
+      <option value="QUICK">Quick Health Check</option>
+    </select>
+  </div>
+  
+  <button class="start-btn" onclick="startScan()">
+    <i class="fa-solid fa-play"></i> Start Scan
+  </button>
+  
+  <button class="download-btn" onclick="downloadReport()" style="display: none;" id="downloadPdfBtn">
+    <i class="fa-solid fa-file-pdf"></i> Download PDF Report
+  </button>
   
   <!-- Progress Bar with Agent Status -->
   <div class="progress-container">
@@ -37,29 +57,147 @@
   <!-- Agent Timeline -->
   <div id="agentTimeline" class="timeline hidden">
     <div class="agent-step" id="agent-profile">
-      <span><i class="fa-solid fa-bullseye"></i> Target Profiling Agent</span>
+      <span><i class="fa-solid fa-bullseye"></i> Target Profiling</span>
       <span class="status">WAITING</span>
     </div>
     <div class="agent-step" id="agent-strategy">
-      <span><i class="fa-solid fa-chess-knight"></i> Attack Strategy Agent</span>
+      <span><i class="fa-solid fa-chess-knight"></i> Attack Strategy</span>
       <span class="status">WAITING</span>
     </div>
     <div class="agent-step" id="agent-exec">
-      <span><i class="fa-solid fa-bug"></i> Attack Execution Agent</span>
+      <span><i class="fa-solid fa-bug"></i> Attack Execution</span>
       <span class="status">WAITING</span>
     </div>
     <div class="agent-step" id="agent-observer">
-      <span><i class="fa-solid fa-eye"></i> Analysis & XAI Agent</span>
+      <span><i class="fa-solid fa-eye"></i> Analysis & XAI</span>
       <span class="status">WAITING</span>
     </div>
   </div>
   
+  <!-- Target Info (shown after profiling) -->
+  <div id="targetInfo" class="target-info" style="display: none;">
+    <h3>🎯 Target Information</h3>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="label">URL:</span>
+        <span id="infoUrl" class="value">-</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Type:</span>
+        <span id="infoType" class="value">-</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Status:</span>
+        <span id="infoStatus" class="value">-</span>
+      </div>
+      <div class="info-item">
+        <span class="label">Risk Level:</span>
+        <span id="infoRisk" class="value">-</span>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Results Section -->
   <div id="result">
-    <div class="agent">
-      <p>Enter a target ID and click "Start Scan" to begin vulnerability testing.</p>
+    <div class="info-box">
+      <h3>📋 Scan Guide</h3>
+      <p>Enter a live target URL to perform real-time security testing:</p>
+      <ul>
+        <li><strong>LLM APIs:</strong> <code>http://localhost:9000/chat</code>, <code>https://api.example.com/v1/completions</code></li>
+        <li><strong>Chat endpoints:</strong> <code>https://test-ai-service/run</code></li>
+        <li><strong>Generic APIs:</strong> <code>https://api.example.com/endpoint</code></li>
+      </ul>
+      <p class="note"><strong>Note:</strong> Only scan systems you own or have permission to test.</p>
     </div>
   </div>
 </div>
+
+<style>
+.scan-type-group {
+  margin: 15px 0;
+}
+
+.scan-type-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.scan-type-group select {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.hint {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.target-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 10px;
+  margin: 20px 0;
+  border-left: 4px solid #667eea;
+}
+
+.target-info h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-item .label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.info-item .value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.info-item .value.reachable {
+  color: #43a047;
+}
+
+.info-item .value.unreachable {
+  color: #e53935;
+}
+
+.note {
+  background: #fff3cd;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 13px;
+  margin-top: 15px;
+}
+
+.subtitle {
+  color: #666;
+  margin-top: -10px;
+  margin-bottom: 20px;
+}
+</style>
 
 <script src="js/config.js"></script>
 <script src="js/scan.js"></script>
