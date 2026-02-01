@@ -1,5 +1,28 @@
+"""
+Observer Agent with LLM Integration
+
+This agent uses Ollama (Llama 2) for advanced AI-powered analysis
+of vulnerability findings. It provides explainable AI (XAI) outputs
+with detailed explanations and mitigation recommendations.
+
+Requires:
+- Ollama installed: brew install ollama
+- Model pulled: ollama run llama2
+"""
+
 from typing import List, Dict
-from ..rl.rule_prioritizer import rl_engine
+from ..rl.learner import update_rule_priority
+
+# Import LLM client if available
+try:
+    from ..llm.ollama_client import OllamaClient, analyze_with_llm
+    LLM_AVAILABLE = True
+except ImportError:
+    LLM_AVAILABLE = False
+    # Fallback when Ollama is not installed
+    def analyze_with_llm(target, attack_type, findings):
+        return None
+
 
 # Attack explanation mapping with context-specific details
 ATTACK_EXPLANATIONS = {
@@ -53,8 +76,11 @@ DEFAULT_EXPLANATION = {
 }
 
 
-def _get_severity(confidence: float) -> str:
-    """Determine severity level based on confidence score."""
+def _get_severity(confidence: float, status: str) -> str:
+    """Determine severity level based on confidence score and status."""
+    if status.upper() == "SECURE" or status.upper() == "PASSED":
+        return "INFO"
+    
     if confidence >= 0.9:
         return "CRITICAL"
     elif confidence >= 0.7:
@@ -78,16 +104,22 @@ def _normalize_attack_name(attack: str) -> str:
     return attack
 
 
-def analyze_results(results):
-    """Generate context-specific explanations for attack results.
+def analyze_results(results: List[Dict], target_url: str = None) -> List[Dict]:
+    """
+    Generate context-specific explanations for attack results.
+    
+    This is the main observer function that processes scan results
+    and produces explainable AI outputs.
     
     Args:
         results: List of attack execution results with 'attack', 'status', 'confidence'
+        target_url: Optional target URL for LLM analysis
         
     Returns:
         List of explanation dictionaries with attack details, why, mitigation, severity, and OWASP reference
     """
     explanations = []
+    
     for r in results:
         attack_name = r.get("attack", "Unknown Attack")
         normalized_attack = _normalize_attack_name(attack_name)
@@ -99,70 +131,126 @@ def analyze_results(results):
         )
         
         # Calculate severity based on confidence and vulnerability status
-        is_vulnerable = r.get("status", "").upper() == "VULNERABLE"
+        is_vulnerable = r.get("status", "").upper() in ["VULNERABLE", "FAILED"]
         confidence = r.get("confidence", 0.0)
         
-        # Adjust severity calculation based on vulnerability status
-        if is_vulnerable:
-            severity = _get_severity(confidence)
+        # Determine severity
+        severity = _get_severity(confidence, r.get("status", ""))
+        
+        # Try LLM analysis if available and target is provided
+        llm_analysis = None
+        if LLM_AVAILABLE and target_url and is_vulnerable:
+            llm_analysis = analyze_with_llm(target_url, attack_name, r)
+        
+        # Use LLM analysis if available, otherwise use static mapping
+        if llm_analysis:
+            final_explanation = llm_analysis.explanation
+            final_mitigation = llm_analysis.mitigation
+            final_severity = llm_analysis.severity
+            confidence = llm_analysis.confidence
         else:
-            severity = "INFO"  # Not vulnerable, informational only
-        
-        # Build rule info for RL
-        rule = {
-            "id": explanation["owasp"],
-            "name": normalized_attack,
-            "severity": severity
-        }
-        
-        # RL: Update rule priority based on vulnerability findings
-        q_score = rl_engine.update(rule, r)
-        priority = rl_engine.get_priority(q_score)
-        
-        print(f"[RL] Updated Q-score for {explanation['owasp']}: {q_score} (Priority: {priority})")
+            final_explanation = explanation["why"]
+            final_mitigation = explanation["mitigation"]
+            final_severity = severity
         
         explanations.append({
             "attack": attack_name,
-            "why": explanation["why"],
-            "mitigation": explanation["mitigation"],
-            "severity": severity,
+            "why": final_explanation,
+            "mitigation": final_mitigation,
+            "severity": final_severity,
             "confidence": confidence,
             "owasp_reference": explanation["owasp"],
             "status": r.get("status", "UNKNOWN"),
-            "q_score": q_score,
-            "priority": priority
+            "evidence": r.get("evidence", "")
         })
+        
+        # RL: Update rule priority based on vulnerability findings
+        rule_id = explanation["owasp"]
+        reward = 2 if final_severity in ["CRITICAL", "HIGH"] else 1
+        try:
+            new_priority = update_rule_priority(rule_id, reward)
+            print(f"[RL] Updated priority for {rule_id}: {new_priority:.3f}")
+        except Exception:
+            pass  # RL learner may not be initialized
     
     return explanations
 
 
-def observe(rule, execution):
+def explain_with_llm(attack_name: str, owasp_ref: str, target: str) -> Dict:
     """
-    Generate explainable observation for a single rule execution.
-    
-    This function integrates with the RL engine to automatically update
-    rule priorities based on scan results.
+    Get detailed LLM-powered explanation for an attack.
     
     Args:
-        rule: The security rule that was tested
-        execution: The execution result (status, explanation, mitigation)
+        attack_name: Name of the attack
+        owasp_ref: OWASP reference
+        target: Target system URL
         
     Returns:
-        Dictionary with rule details, execution results, and RL-based priority
+        Dictionary with explanation, mitigation, and risk details
     """
-    # Update RL with this rule's result
-    q_score = rl_engine.update(rule, execution)
-    priority = rl_engine.get_priority(q_score)
+    if not LLM_AVAILABLE:
+        return {
+            "explanation": "LLM not available. Install Ollama for advanced analysis.",
+            "mitigation": "Review static mitigation guidelines.",
+            "attack_vector": "Analysis unavailable"
+        }
+    
+    client = OllamaClient()
+    if not client.is_available():
+        return {
+            "explanation": "Ollama not running. Start with: ollama run llama2",
+            "mitigation": "Configure Ollama for advanced analysis.",
+            "attack_vector": "LLM unavailable"
+        }
+    
+    explanation = client.explain_attack(attack_name, owasp_ref)
+    mitigation = client.generate_mitigation(attack_name, "MEDIUM", target)
     
     return {
-        "rule_id": rule.get("id", rule.get("rule_id", "unknown")),
-        "name": rule.get("name", "Unknown"),
-        "owasp": rule.get("owasp", "N/A"),
-        "severity": rule.get("severity", "MEDIUM"),
-        "status": execution.get("status", "UNKNOWN"),
-        "explanation": execution.get("explanation", ""),
-        "mitigation": execution.get("mitigation", ""),
-        "q_score": q_score,
-        "new_priority": priority
+        "explanation": explanation,
+        "mitigation": mitigation,
+        "attack_vector": attack_name
     }
 
+
+# Import OllamaClient at module level for LLM analysis
+try:
+    from ..llm.ollama_client import OllamaClient
+except ImportError:
+    OllamaClient = None
+
+
+def get_llm_analysis(target: str, attack_type: str, findings: Dict) -> Dict:
+    """
+    Get advanced LLM analysis for a vulnerability finding.
+    
+    Args:
+        target: Target URL
+        attack_type: Type of attack
+        findings: Test results
+        
+    Returns:
+        Dictionary with LLM-generated analysis
+    """
+    if not OllamaClient:
+        return {
+            "error": "Ollama client not available",
+            "message": "Install Ollama and run: ollama run llama2"
+        }
+    
+    client = OllamaClient()
+    if not client.is_available():
+        return {
+            "error": "Ollama not running",
+            "message": "Start Ollama and pull a model: ollama run llama2"
+        }
+    
+    analysis = client.analyze_vulnerability(target, attack_type, findings)
+    
+    return {
+        "explanation": analysis.explanation,
+        "severity": analysis.severity,
+        "confidence": analysis.confidence,
+        "mitigation": analysis.mitigation,
+        "attack_vector": analysis.attack_vector
+    }
