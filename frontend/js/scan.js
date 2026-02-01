@@ -1,143 +1,306 @@
 const API_BASE = "http://127.0.0.1:8000";
 
-const startBtn = document.getElementById("startScanBtn");
-const input = document.getElementById("targetInput");
-const resultBox = document.getElementById("resultBox");
-
 // Store latest scan result for PDF generation
 let latestScanResult = null;
-let latestScanId = null;
+let latestTarget = null;
+let currentScanId = null;
+let progressWebSocket = null;
 
-startBtn.addEventListener("click", async () => {
-  const targetId = input.value.trim();
+// DOM Elements - support both old and new element IDs
+const startBtn = document.getElementById("startScanBtn") || document.querySelector(".start-btn");
+const input = document.getElementById("targetInput") || document.getElementById("targetId") || document.getElementById("scanTarget");
+const resultBox = document.getElementById("resultBox") || document.getElementById("result");
 
-  if (!targetId) {
-    alert("Please enter a target ID");
+// Check authentication and update UI
+function checkAuth() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    // Show login required message
+    if (resultBox) {
+      resultBox.innerHTML = `
+        <div class="info-box">
+          <h3>🔐 Login Required</h3>
+          <p>Please login to start a vulnerability scan.</p>
+          <button class="btn-primary" onclick="window.location.href='admin_login.html'">
+            Go to Login
+          </button>
+        </div>
+      `;
+    }
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.title = "Please login first";
+    }
+    return false;
+  }
+  return true;
+}
+
+// Initialize on page load
+window.addEventListener('load', () => {
+  checkAuth();
+  
+  // Add Enter key support for scan input
+  if (input) {
+    input.addEventListener("keypress", function(e) {
+      if (e.key === "Enter") {
+        startScan();
+      }
+    });
+  }
+});
+
+// WebSocket Connection for Progress Updates
+function connectProgressWebSocket(scanId) {
+  // Close existing connection if any
+  if (progressWebSocket) {
+    progressWebSocket.close();
+  }
+  
+  // Create new WebSocket connection
+  const wsUrl = `ws://127.0.0.1:8000/ws/scan/${scanId}`;
+  console.log(`[WS] Connecting to ${wsUrl}`);
+  
+  progressWebSocket = new WebSocket(wsUrl);
+  
+  progressWebSocket.onopen = () => {
+    console.log(`[WS] Connected for scan ${scanId}`);
+  };
+  
+  progressWebSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log(`[WS] Progress:`, data);
+      
+      // Handle progress updates
+      if (data.progress !== undefined && data.agent) {
+        updateProgressBar(data.progress, data.agent, data.details || "");
+      }
+      
+      // Handle status messages
+      if (data.status === "connected") {
+        console.log("[WS] WebSocket handshake complete");
+      }
+    } catch (e) {
+      console.error("[WS] Error parsing message:", e);
+    }
+  };
+  
+  progressWebSocket.onclose = (event) => {
+    console.log(`[WS] Disconnected (code: ${event.code})`);
+  };
+  
+  progressWebSocket.onerror = (error) => {
+    console.error("[WS] Error:", error);
+  };
+  
+  return progressWebSocket;
+}
+
+function disconnectProgressWebSocket() {
+  if (progressWebSocket) {
+    progressWebSocket.close();
+    progressWebSocket = null;
+  }
+}
+
+// Update Progress Bar with Agent Info
+function updateProgressBar(progress, agent, details) {
+  // Update progress bar
+  const progressBar = document.getElementById("scanProgress");
+  if (progressBar && progress >= 0) {
+    progressBar.value = progress;
+    progressBar.style.display = "block";
+  }
+  
+  // Update percentage text
+  const progressPercent = document.getElementById("progressPercent");
+  if (progressPercent) {
+    if (progress >= 0) {
+      progressPercent.textContent = `${progress}%`;
+      progressPercent.style.display = "inline";
+    } else {
+      progressPercent.textContent = agent;
+    }
+  }
+  
+  // Update agent status
+  const agentStatus = document.getElementById("agentStatus");
+  if (agentStatus) {
+    if (details) {
+      agentStatus.textContent = `${agent}: ${details}`;
+    } else {
+      agentStatus.textContent = agent;
+    }
+  }
+  
+  // Update timeline based on agent
+  updateAgentStatus(agent);
+}
+
+function updateAgentStatus(agent) {
+  // Map agent names to timeline element IDs
+  const agentMapping = {
+    "Target Profiling": "agent-profile",
+    "Attack Strategy": "agent-strategy",
+    "Attack Execution": "agent-exec",
+    "Analysis & XAI": "agent-observer"
+  };
+  
+  const elementId = agentMapping[agent];
+  if (elementId) {
+    updateAgent(elementId, "RUNNING");
+  }
+}
+
+async function startScan() {
+  const target = input ? input.value.trim() : "";
+  
+  if (!target) {
+    alert("Please enter a target URL (e.g., https://api.example.com/llm)");
     return;
   }
-
-  resultBox.innerHTML = "🔍 Scanning...";
-
+  
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "admin_login.html";
+    return;
+  }
+  
+  // Show loading
+  if (resultBox) {
+    resultBox.innerHTML = `
+      <div class="info-box">
+        <h3>🔍 Starting Scan...</h3>
+        <p>Target: ${target}</p>
+        <p>Running multi-agent vulnerability assessment pipeline.</p>
+      </div>
+    `;
+  }
+  
   // Show and reset timeline
   showTimeline();
   resetTimeline();
-
-  // Connect to WebSocket for real-time progress
-  const ws = new WebSocket(`ws://127.0.0.1:8000/ws/scan/${targetId}`);
-
-  // Track completed agents for progress
-  let completedCount = 0;
-  const totalAgents = 4;
-
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log("WebSocket message:", data);
-
-    if (data.agent === "profile") {
-      updateAgent("agent-profile", "RUNNING");
-      updateProgress(25);
-    }
-    if (data.agent === "strategy") {
-      updateAgent("agent-strategy", "RUNNING");
-      updateProgress(50);
-    }
-    if (data.agent === "exec") {
-      updateAgent("agent-exec", "RUNNING");
-      updateProgress(75);
-    }
-    if (data.agent === "observer") {
-      updateAgent("agent-observer", "RUNNING");
-      updateProgress(90);
-    }
-
-    if (data.done) {
-      completeAgent("agent-profile");
-      completeAgent("agent-strategy");
-      completeAgent("agent-exec");
-      completeAgent("agent-observer");
-      updateProgress(100);
-      ws.close();
-    }
-  };
-
-  ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
-  };
-
-  ws.onclose = () => {
-    console.log("WebSocket connection closed");
-  };
-
+  
   try {
-    const response = await fetch(
-      `${API_BASE}/scan?target_id=${targetId}`,
-      {
-        method: "POST",
-        headers: {
-          "Accept": "application/json"
-        }
-      }
-    );
-
+    // Connect to WebSocket before starting scan
+    // We'll use a temporary scan ID and reconnect after we get the actual one
+    connectProgressWebSocket("connecting");
+    
+    // Start with profiling agent
+    updateAgent("agent-profile", "RUNNING");
+    updateProgress(25);
+    
+    // Call the scan API
+    const response = await fetch(`${API_BASE}/scan`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        target_id: target,
+        target_type: "llm"
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Scan failed");
+    }
+    
     const data = await response.json();
     console.log("SCAN RESULT:", data);
-
+    
+    // Store scan_id and reconnect WebSocket
+    currentScanId = data.scan_id;
+    disconnectProgressWebSocket();
+    connectProgressWebSocket(currentScanId);
+    
+    // Mark strategy and exec as done
+    completeAgent("agent-strategy");
+    completeAgent("agent-exec");
+    updateProgress(75);
+    
+    // Complete observer
+    updateAgent("agent-observer", "RUNNING");
+    updateProgress(90);
+    
     // Store for PDF download
     latestScanResult = data;
-    latestScanId = targetId;
-
-    renderResults(data);
-
+    latestTarget = target;
+    
+    // Render results
+    renderResults(data.results);
+    
+    // Complete observer and finish
+    completeAgent("agent-observer");
+    updateProgress(100);
+    
+    // Disconnect WebSocket after scan completes
+    setTimeout(() => {
+      disconnectProgressWebSocket();
+    }, 1000);
+    
   } catch (err) {
-    console.error(err);
-    resultBox.innerHTML = "❌ Scan failed. Check console.";
+    console.error("Scan error:", err);
+    disconnectProgressWebSocket();
+    if (resultBox) {
+      resultBox.innerHTML = `
+        <div class="vuln-card error">
+          <h3>❌ Scan Failed</h3>
+          <p>${err.message}</p>
+        </div>
+      `;
+    }
     hideTimeline();
   }
-});
+}
 
-function renderResults(data) {
-  if (!data.results || data.results.length === 0) {
-    resultBox.innerHTML = `
-      <div class="vuln-card medium">
-        <h3>✅ No Vulnerabilities Found</h3>
-        <p>No security issues were detected for this target.</p>
-      </div>
-    `;
+function renderResults(results) {
+  if (!results || results.length === 0) {
+    if (resultBox) {
+      resultBox.innerHTML = `
+        <div class="vuln-card low">
+          <h3>✅ No Vulnerabilities Found</h3>
+          <p>The security scan completed successfully with no issues detected.</p>
+        </div>
+      `;
+    }
     // Hide download button if no results
-    document.getElementById("downloadPdfBtn").style.display = "none";
+    const downloadBtn = document.getElementById("downloadPdfBtn");
+    if (downloadBtn) downloadBtn.style.display = "none";
     return;
   }
-
+  
   let html = "";
-  data.results.forEach(vuln => {
+  results.forEach(r => {
+    const statusClass = r.status === "VULNERABLE" ? "critical" : "low";
     html += `
-      <div class="vuln-card ${vuln.severity ? vuln.severity.toLowerCase() : 'medium'}">
-        <h3>${vuln.attack}</h3>
-        <p><b>Status:</b> ${vuln.status || 'Detected'}</p>
-        <p><b>Severity:</b> ${vuln.severity || 'N/A'}</p>
-        <p><b>Why:</b> ${vuln.why}</p>
-        <p><b>Mitigation:</b> ${vuln.mitigation}</p>
-        <p><b>OWASP:</b> ${vuln.owasp_reference || 'N/A'}</p>
+      <div class="vuln-card ${statusClass}">
+        <h3>${r.attack || r.name || 'Vulnerability'} (${r.owasp_reference || r.owasp || 'N/A'})</h3>
+        <p><b>Status:</b> ${r.status}</p>
+        <p><b>Severity:</b> ${r.severity}</p>
+        <p><b>Confidence:</b> ${((r.confidence || 0) * 100).toFixed(0)}%</p>
+        <p><b>Why:</b> ${r.why || r.explanation}</p>
+        <p><b>Mitigation:</b> ${r.mitigation}</p>
       </div>
     `;
   });
-
-  resultBox.innerHTML = html;
+  
+  if (resultBox) {
+    resultBox.innerHTML = html;
+  }
   
   // Show download PDF button
-  document.getElementById("downloadPdfBtn").style.display = "inline-block";
+  const downloadBtn = document.getElementById("downloadPdfBtn");
+  if (downloadBtn) downloadBtn.style.display = "inline-block";
 }
 
-// Allow Enter key to trigger scan
-input.addEventListener("keypress", function(e) {
-  if (e.key === "Enter") {
-    startBtn.click();
-  }
-});
-
 // Download PDF Report
-function downloadReport(scanId) {
-  const id = scanId || latestScanId;
+function downloadReport(target) {
+  const id = target || latestTarget;
   if (!id) {
     alert("No scan available. Please run a scan first.");
     return;
@@ -179,16 +342,26 @@ function hideProgressBar() {
   if (progressPercent) {
     progressPercent.style.display = "none";
   }
+  const agentStatus = document.getElementById("agentStatus");
+  if (agentStatus) {
+    agentStatus.textContent = "";
+  }
 }
 
 // Agent Timeline Functions
 function showTimeline() {
-  document.getElementById("agentTimeline").classList.remove("hidden");
+  const timeline = document.getElementById("agentTimeline");
+  if (timeline) {
+    timeline.classList.remove("hidden");
+  }
   initProgressBar();
 }
 
 function hideTimeline() {
-  document.getElementById("agentTimeline").classList.add("hidden");
+  const timeline = document.getElementById("agentTimeline");
+  if (timeline) {
+    timeline.classList.add("hidden");
+  }
   hideProgressBar();
 }
 
@@ -221,24 +394,8 @@ function resetTimeline() {
   updateProgress(0);
 }
 
-// Simulated timeline update for demo
-function simulateTimeline() {
-  showTimeline();
-  resetTimeline();
-  
-  const agents = ["agent-profile", "agent-strategy", "agent-exec", "agent-observer"];
-  let index = 0;
-  
-  const interval = setInterval(() => {
-    if (index < agents.length) {
-      updateAgent(agents[index], "RUNNING...");
-      if (index > 0) {
-        completeAgent(agents[index - 1]);
-      }
-      index++;
-    } else {
-      completeAgent(agents[agents.length - 1]);
-      clearInterval(interval);
-    }
-  }, 1500);
-}
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  disconnectProgressWebSocket();
+});
+
