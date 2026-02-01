@@ -20,92 +20,95 @@
 </header>
 
 <div class="scan-container">
-  <h2>🔍 AI Vulnerability Scan</h2>
-  <p class="subtitle">Real-time security testing for LLM APIs and AI systems</p>
+  <h2>🔍 Vulnerability Scan</h2>
+  <p class="subtitle">Real-time security testing for AI systems</p>
   
-  <div class="scan-input-group">
-    <label for="scanTarget">Target URL</label>
-    <input id="scanTarget" placeholder="http://localhost:9000/chat">
-    <span class="hint">Enter LLM or API endpoint URL</span>
-  </div>
-  
-  <div class="scan-type-group">
-    <label>Scan Type:</label>
-    <select id="scanType">
-      <option value="FULL">Full Security Scan</option>
-      <option value="LLM">LLM-Specific (Prompt Injection, Output Handling)</option>
-      <option value="API">API Security Check</option>
-      <option value="QUICK">Quick Health Check</option>
+  <!-- Scan Type Selector -->
+  <div class="form-group">
+    <label>Scan Type</label>
+    <select id="scanType" onchange="toggleScanInput()">
+      <option value="API">🌐 API / LLM Endpoint</option>
+      <option value="DATASET">📁 Dataset Upload</option>
     </select>
   </div>
-  
-  <button class="start-btn" onclick="startScan()">
-    <i class="fa-solid fa-play"></i> Start Scan
+
+  <!-- URL Input -->
+  <div id="urlInput">
+    <div class="form-group">
+      <label>Target URL</label>
+      <input id="scanTarget" placeholder="http://localhost:9000/chat">
+      <span class="hint">Enter LLM or API endpoint URL</span>
+    </div>
+    <div class="example-urls">
+      <span>Examples:</span>
+      <code>http://localhost:9000/chat</code>
+      <code>https://api.example.com/v1/llm</code>
+      <code>https://test-ai-service/run</code>
+    </div>
+  </div>
+
+  <!-- Dataset Input -->
+  <div id="datasetInput" style="display:none">
+    <div class="form-group">
+      <label>Upload Dataset</label>
+      <input type="file" id="datasetFile" accept=".json,.csv">
+      <span class="hint">Upload JSON or CSV file with target data</span>
+    </div>
+  </div>
+
+  <button class="start-btn" onclick="startUnifiedScan()">
+    <i class="fa-solid fa-rocket"></i> Start Scan
   </button>
-  
-  <button class="download-btn" onclick="downloadReport()" style="display: none;" id="downloadPdfBtn">
+
+  <button class="download-btn" onclick="downloadPDF()" style="display: none;" id="downloadPdfBtn">
     <i class="fa-solid fa-file-pdf"></i> Download PDF Report
   </button>
-  
-  <!-- Progress Bar with Agent Status -->
+
+  <hr>
+
+  <!-- Agent Timeline -->
+  <h3>Agent Execution Timeline</h3>
+  <div class="timeline">
+    <div class="step" id="agent-profile">
+      <span class="step-icon">🕵️</span>
+      <span class="step-text">Profiling</span>
+      <span class="step-status">WAITING</span>
+    </div>
+    <div class="step" id="agent-strategy">
+      <span class="step-icon">♟️</span>
+      <span class="step-text">Strategy</span>
+      <span class="step-status">WAITING</span>
+    </div>
+    <div class="step" id="agent-execute">
+      <span class="step-icon">⚔️</span>
+      <span class="step-text">Execution</span>
+      <span class="step-status">WAITING</span>
+    </div>
+    <div class="step" id="agent-observer">
+      <span class="step-icon">👁</span>
+      <span class="step-text">Observer</span>
+      <span class="step-status">WAITING</span>
+    </div>
+  </div>
+
+  <!-- Progress Bar -->
   <div class="progress-container">
     <progress id="scanProgress" value="0" max="100" style="display: none;"></progress>
     <span id="progressPercent" style="display: none;">0%</span>
     <p id="agentStatus" class="agent-status"></p>
   </div>
-  
-  <!-- Agent Timeline -->
-  <div id="agentTimeline" class="timeline hidden">
-    <div class="agent-step" id="agent-profile">
-      <span><i class="fa-solid fa-bullseye"></i> Target Profiling</span>
-      <span class="status">WAITING</span>
-    </div>
-    <div class="agent-step" id="agent-strategy">
-      <span><i class="fa-solid fa-chess-knight"></i> Attack Strategy</span>
-      <span class="status">WAITING</span>
-    </div>
-    <div class="agent-step" id="agent-exec">
-      <span><i class="fa-solid fa-bug"></i> Attack Execution</span>
-      <span class="status">WAITING</span>
-    </div>
-    <div class="agent-step" id="agent-observer">
-      <span><i class="fa-solid fa-eye"></i> Analysis & XAI</span>
-      <span class="status">WAITING</span>
-    </div>
-  </div>
-  
-  <!-- Target Info (shown after profiling) -->
-  <div id="targetInfo" class="target-info" style="display: none;">
-    <h3>🎯 Target Information</h3>
-    <div class="info-grid">
-      <div class="info-item">
-        <span class="label">URL:</span>
-        <span id="infoUrl" class="value">-</span>
-      </div>
-      <div class="info-item">
-        <span class="label">Type:</span>
-        <span id="infoType" class="value">-</span>
-      </div>
-      <div class="info-item">
-        <span class="label">Status:</span>
-        <span id="infoStatus" class="value">-</span>
-      </div>
-      <div class="info-item">
-        <span class="label">Risk Level:</span>
-        <span id="infoRisk" class="value">-</span>
-      </div>
-    </div>
-  </div>
-  
+
+  <hr>
+
   <!-- Results Section -->
-  <div id="result">
+  <h3>Scan Results</h3>
+  <div id="scanResults">
     <div class="info-box">
-      <h3>📋 Scan Guide</h3>
-      <p>Enter a live target URL to perform real-time security testing:</p>
+      <h3>📋 Getting Started</h3>
+      <p>Choose a scan type above and click "Start Scan" to begin vulnerability testing.</p>
       <ul>
-        <li><strong>LLM APIs:</strong> <code>http://localhost:9000/chat</code>, <code>https://api.example.com/v1/completions</code></li>
-        <li><strong>Chat endpoints:</strong> <code>https://test-ai-service/run</code></li>
-        <li><strong>Generic APIs:</strong> <code>https://api.example.com/endpoint</code></li>
+        <li><strong>API / LLM Endpoint:</strong> Real-time probing of live URLs</li>
+        <li><strong>Dataset Upload:</strong> Scan targets from a JSON or CSV file</li>
       </ul>
       <p class="note"><strong>Note:</strong> Only scan systems you own or have permission to test.</p>
     </div>
@@ -113,23 +116,33 @@
 </div>
 
 <style>
-.scan-type-group {
+.form-group {
   margin: 15px 0;
 }
 
-.scan-type-group label {
+.form-group label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   font-weight: 600;
+  color: #333;
 }
 
-.scan-type-group select {
+.form-group select,
+.form-group input[type="text"],
+.form-group input[type="file"] {
   width: 100%;
-  max-width: 400px;
-  padding: 10px;
+  max-width: 500px;
+  padding: 12px;
   border: 1px solid #ddd;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 14px;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .hint {
@@ -139,49 +152,129 @@
   margin-top: 5px;
 }
 
-.target-info {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 10px;
-  margin: 20px 0;
-  border-left: 4px solid #667eea;
+.example-urls {
+  margin-top: 10px;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
-.target-info h3 {
-  margin-top: 0;
-  color: #333;
+.example-urls span {
+  color: #666;
+  margin-right: 10px;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+.example-urls code {
+  background: #e8e8e8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-right: 10px;
+  font-size: 12px;
+}
+
+.timeline {
+  display: flex;
   gap: 15px;
-  margin-top: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
 }
 
-.info-item {
+.step {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  padding: 15px 20px;
+  border-radius: 12px;
+  background: #2c2c2c;
+  color: #aaa;
+  min-width: 100px;
+  transition: all 0.3s ease;
 }
 
-.info-item .label {
+.step.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.step.done {
+  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(67, 160, 71, 0.4);
+}
+
+.step.error {
+  background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+  color: white;
+}
+
+.step-icon {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.step-text {
   font-size: 12px;
-  color: #666;
-  text-transform: uppercase;
-}
-
-.info-item .value {
-  font-size: 16px;
   font-weight: 600;
+}
+
+.step-status {
+  font-size: 10px;
+  margin-top: 5px;
+  padding: 2px 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+
+.card {
+  border: 1px solid #ddd;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.card.VULNERABLE {
+  border-left: 5px solid #e53935;
+}
+
+.card.SECURE,
+.card.PASSED {
+  border-left: 5px solid #43a047;
+}
+
+.card.CHECK_MANUAL,
+card.WARNING {
+  border-left: 5px solid #fb8c00;
+}
+
+.card.ERROR {
+  border-left: 5px solid #9e9e9e;
+}
+
+.card h4 {
+  margin: 0 0 10px 0;
   color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.info-item .value.reachable {
-  color: #43a047;
+.card p {
+  margin: 5px 0;
+  color: #555;
+  font-size: 14px;
 }
 
-.info-item .value.unreachable {
-  color: #e53935;
+.card p b {
+  color: #333;
 }
 
 .note {
@@ -190,12 +283,20 @@
   border-radius: 5px;
   font-size: 13px;
   margin-top: 15px;
+  border-left: 4px solid #ffc107;
 }
 
 .subtitle {
   color: #666;
   margin-top: -10px;
   margin-bottom: 20px;
+}
+
+.agent-status {
+  text-align: center;
+  color: #667eea;
+  font-weight: 500;
+  margin-top: 10px;
 }
 </style>
 

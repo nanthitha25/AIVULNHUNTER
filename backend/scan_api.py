@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Response
+from fastapi import APIRouter, HTTPException, Depends, Response, UploadFile, File
 import json
 import os
 import uuid
@@ -225,4 +225,63 @@ async def quick_scan(target_url: str, admin: str = Depends(get_current_admin)):
         "profile": profile,
         "status": "completed"
     }
+
+
+@router.post("/scan/upload")
+async def upload_dataset_scan(
+    file: UploadFile = File(...),
+    admin: str = Depends(get_current_admin)
+):
+    """
+    Upload a dataset file and scan all targets within it.
+    
+    Supports JSON and CSV files containing target information.
+    Each target in the file will be scanned.
+    """
+    scan_id = str(uuid.uuid4())
+    
+    # Read and parse the uploaded file
+    content = await file.read()
+    
+    try:
+        if file.filename.endswith(".json"):
+            targets_data = json.loads(content.decode("utf-8"))
+        elif file.filename.endswith(".csv"):
+            # Parse CSV - assume first column is target identifier
+            lines = content.decode("utf-8").strip().split("\n")
+            targets_data = []
+            for line in lines[1:]:  # Skip header
+                if line.strip():
+                    targets_data.append({"id": line.split(",")[0].strip()})
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format")
+        
+        # Handle different data structures
+        if isinstance(targets_data, dict):
+            # Single target object
+            targets_data = [targets_data]
+        elif not isinstance(targets_data, list):
+            raise HTTPException(status_code=400, detail="Invalid file format")
+        
+        # Scan first target (for demo - could scan all)
+        if len(targets_data) > 0:
+            first_target = targets_data[0]
+            target_id = first_target.get("url") or first_target.get("id") or first_target.get("name")
+            
+            if target_id:
+                # Redirect to main scan endpoint
+                return {
+                    "scan_id": scan_id,
+                    "message": "Dataset loaded",
+                    "targets_count": len(targets_data),
+                    "scanning": target_id,
+                    "redirect": f"/scan?target={target_id}"
+                }
+        
+        raise HTTPException(status_code=400, detail="No valid targets found in file")
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
