@@ -1,6 +1,11 @@
 # AIVULNHUNTER
 
+
 ## 🏗️ System Architecture
+
+![System Architecture (SVG)](docs/architecture.svg)
+
+![System Architecture (PNG)](docs/architecture.png)
 
 ```mermaid
 flowchart TD
