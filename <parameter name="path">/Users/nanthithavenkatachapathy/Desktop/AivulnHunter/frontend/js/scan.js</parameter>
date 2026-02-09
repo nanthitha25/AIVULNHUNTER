@@ -1,0 +1,125 @@
+<parameter name="content">/**
+ * Scan API - Start vulnerability scans
+ */
+
+const API_URL = "http://127.0.0.1:8000";
+
+/**
+ * Start a vulnerability scan
+ */
+async function startScan() {
+  console.log("Start scan clicked"); // 🔥 MUST PRINT
+
+  const target = document.getElementById("target")?.value || document.getElementById("scanTarget")?.value;
+  const scanType = document.getElementById("scanType")?.value || "API";
+  const token = localStorage.getItem("token");
+  const resultBox = document.getElementById("scanResults");
+
+  if (!target) {
+    alert("Please enter a target URL");
+    return;
+  }
+
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "admin_login.html";
+    return;
+  }
+
+  // Show loading
+  if (resultBox) {
+    resultBox.innerHTML = `
+      <div class="info-box">
+        <h3>🔍 Starting Scan...</h3>
+        <p>Target: ${target}</p>
+        <p>Type: ${scanType}</p>
+      </div>
+    `;
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/scan`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        target: target,
+        scan_type: scanType
+      })
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || "Scan failed");
+    }
+
+    const data = await res.json();
+    console.log("Scan result:", data);
+
+    // Render results
+    if (resultBox) {
+      renderResults(data.results || []);
+    }
+
+  } catch (err) {
+    console.error("Scan error:", err);
+    if (resultBox) {
+      resultBox.innerHTML = `
+        <div class="card ERROR">
+          <h3>❌ Scan Failed</h3>
+          <p>${err.message}</p>
+        </div>
+      `;
+    }
+  }
+}
+
+/**
+ * Render scan results to DOM
+ * @param {Array} results - Array of vulnerability results
+ */
+function renderResults(results) {
+  const resultBox = document.getElementById("scanResults");
+  if (!resultBox) return;
+
+  if (!results || results.length === 0) {
+    resultBox.innerHTML = `
+      <div class="result-card passed">
+        <strong>✅ No Vulnerabilities Found</strong><br>
+        The security scan completed successfully with no issues detected.
+      </div>
+    `;
+    return;
+  }
+
+  let html = "";
+  results.forEach(r => {
+    const statusClass = r.status === "VULNERABLE" ? "failed" : "passed";
+    const icon = r.status === "VULNERABLE" ? "⚠️" : "✅";
+
+    html += `
+      <div class="result-card ${statusClass}" style="animation: fadeIn 0.6s ease;">
+        <strong>${icon} ${r.attack || r.name || 'Vulnerability'} (${r.owasp_reference || r.owasp || 'N/A'})</strong><br>
+        Status: ${r.status}<br>
+        <em>${r.why || r.explanation || 'No explanation available'}</em><br>
+        <b>Mitigation:</b> ${r.mitigation || 'No mitigation available'}
+      </div>
+    `;
+  });
+
+  resultBox.innerHTML = html;
+}
+
+// Allow Enter key to trigger scan
+document.addEventListener("keypress", function(e) {
+  if (e.key === "Enter" && document.getElementById("target")) {
+    startScan();
+  }
+});
+
+// Export for use in HTML onclick
+window.startScan = startScan;
+</parameter>
+</invoke_name>

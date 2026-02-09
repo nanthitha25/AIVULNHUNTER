@@ -15,15 +15,15 @@ export async function login(username, password) {
 }
 
 export function setToken(token) {
-  localStorage.setItem("adminToken", token);
+  localStorage.setItem("token", token);
 }
 
 export function getToken() {
-  return localStorage.getItem("adminToken");
+  return localStorage.getItem("token");
 }
 
 export function removeToken() {
-  localStorage.removeItem("adminToken");
+  localStorage.removeItem("token");
 }
 
 export function isAuthenticated() {

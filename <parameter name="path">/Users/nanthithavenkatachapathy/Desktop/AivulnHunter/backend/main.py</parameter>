@@ -1,0 +1,44 @@
+<parameter name="content">from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+
+app = FastAPI(title="AIVULNHUNTER")
+
+# CORS (safe for development)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = BASE_DIR / "frontend"
+
+# Serve static assets
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+# User dashboard
+@app.get("/", response_class=HTMLResponse)
+def user_ui():
+    return (FRONTEND_DIR / "index.html").read_text()
+
+# Admin dashboard
+@app.get("/admin", response_class=HTMLResponse)
+def admin_ui():
+    return (FRONTEND_DIR / "admin.html").read_text()
+
+# ---- IMPORT ROUTES BELOW THIS LINE ----
+from backend.routes.auth import router as auth_router
+from backend.routes.rules import router as rules_router
+from backend.routes.scan import router as scan_router
+
+# Include routers with prefixes and tags
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(rules_router, prefix="/rules", tags=["Rules"])
+app.include_router(scan_router, prefix="/scan", tags=["Scan"])
+</parameter>
+</invoke_name>

@@ -4,33 +4,45 @@
  */
 
 import { API_BASE } from "../config.js";
+import { getToken } from "./authApi.js";
+
+function getAuthHeaders() {
+  const token = getToken();
+  return {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
+}
 
 export async function getRules() {
-  const res = await fetch(`${API_BASE}/admin/rules`);
+  const res = await fetch(`${API_BASE}/rules`, {
+    headers: getAuthHeaders()
+  });
   return await res.json();
 }
 
 export async function addRule(rule) {
-  const res = await fetch(`${API_BASE}/admin/rules`, {
+  const res = await fetch(`${API_BASE}/rules`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(rule)
   });
   return await res.json();
 }
 
 export async function updateRule(id, rule) {
-  const res = await fetch(`${API_BASE}/admin/rules/${id}`, {
+  const res = await fetch(`${API_BASE}/rules/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(rule)
   });
   return await res.json();
 }
 
 export async function deleteRule(id) {
-  const res = await fetch(`${API_BASE}/admin/rules/${id}`, {
-    method: "DELETE"
+  const res = await fetch(`${API_BASE}/rules/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders()
   });
   return await res.json();
 }

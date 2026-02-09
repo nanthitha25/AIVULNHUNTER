@@ -1,0 +1,192 @@
+<parameter name="content">/* Base Styles */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: #d1d5db;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  background: #020617;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+}
+
+.sidebar .logo {
+  color: #5eead4;
+  font-size: 20px;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #334155;
+}
+
+.nav-links {
+  list-style: none;
+  padding: 0;
+}
+
+.nav-links li {
+  padding: 12px 15px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
+  color: #94a3b8;
+}
+
+.nav-links li:hover {
+  background: #1e293b;
+  color: #5eead4;
+}
+
+.nav-links li.active {
+  background: #5eead4;
+  color: #020617;
+  font-weight: bold;
+}
+
+.nav-links li.admin-only {
+  display: none;
+}
+
+/* Main Content */
+.main-content {
+  margin-left: 250px;
+  padding: 40px;
+  flex: 1;
+}
+
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.hero h1 {
+  color: #5eead4;
+}
+
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.stat-box {
+  background: #020617;
+  padding: 20px;
+  border-radius: 8px;
+  width: 150px;
+}
+
+.stat-box span {
+  font-size: 28px;
+  color: #5eead4;
+}
+
+/* Navigation Cards */
+.nav-cards {
+  padding: 40px;
+  text-align: center;
+}
+
+.nav-cards h2 {
+  color: #5eead4;
+  margin-bottom: 30px;
+}
+
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.nav-card {
+  background: #020617;
+  padding: 30px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.nav-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 20px rgba(94, 234, 212, 0.3);
+}
+
+.nav-card .icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.nav-card h3 {
+  color: #5eead4;
+  margin-bottom: 10px;
+}
+
+.nav-card p {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* Agents */
+.agents {
+  padding: 40px;
+  text-align: center;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.agent-card {
+  background: #020617;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+/* Scan */
+.scan {
+  text-align: center;
+  padding: 40px;
+}
+
+.scan input, .scan select {
+  padding: 10px;
+  width: 300px;
+  margin: 10px;
+  background: #020617;
+  border: 1px solid #334155;
+  color: white;
+}
+
+.scan button {
+  padding: 12px 30px;
+  background: #5eead4;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+/* Results */
+.results {
+  padding: 40px;
+}
+
+pre {
+  background: #020617;
+  padding: 20px;
+  border-radius: 8px;
+}
+</parameter>

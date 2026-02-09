@@ -1,46 +1,212 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>AivulnHunter – Red Team AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AivulnHunter - AI Red Team Security</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<header>
-  <h2>🛡️ RedTeam AI</h2>
-  <nav>
-    <a href="agents.html">Agents</a>
-    <a href="scan.html">Scan</a>
-    <a href="admin_login.html">Admin</a>
-  </nav>
-</header>
-
-<section class="hero">
-  <h1>Red Teaming for AI System Vulnerability</h1>
-  <p>Explainable AI security testing using multi-agent architecture</p>
-</section>
-
-<section class="scan-container">
-  <h2>🔍 AI Vulnerability Scan</h2>
-  
-  <div class="scan-input-group">
-    <input id="targetId" value="llm_001" placeholder="Enter Target ID">
-    <button class="start-btn" onclick="startScan()">Start Scan</button>
+<nav class="navbar">
+  <div class="navbar-inner">
+    <h2>🛡️ AivulnHunter</h2>
+    <div class="nav-right">
+      <a href="#" onclick="loadHome(); return false;" class="active">Home</a>
+      <a href="#" onclick="loadScan(); return false;">Scan</a>
+      <a href="agents.html">Agents</a>
+      <a href="rl.html">RL Heatmap</a>
+      <a href="#" onclick="loadAdminPage(); return false;">Admin</a>
+    </div>
   </div>
-  
-  <pre id="output" style="background: #15151f; padding: 20px; border-radius: 8px; color: #a0a0b0;"></pre>
-</section>
+</nav>
 
-<section class="modules">
-  <div class="card"><i class="fa-solid fa-bullseye"></i> Target Profiling Agent</div>
-  <div class="card"><i class="fa-solid fa-chess-knight"></i> Attack Strategy Agent</div>
-  <div class="card"><i class="fa-solid fa-bug"></i> Exploitation Agent</div>
-  <div class="card"><i class="fa-solid fa-eye"></i> Observer Agent</div>
-</section>
+<main class="app-shell">
+  <section class="dashboard">
+    
+    <div class="page-title">
+      <h1>🔐 AI Red Team Security Platform</h1>
+      <p>Advanced vulnerability assessment for AI/LLM systems</p>
+    </div>
 
-<script src="app.js"></script>
+    <div class="card">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>Active Rules</h3>
+          <p id="ruleCount">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>Scan Status</h3>
+          <p id="scanStatus">Ready</p>
+        </div>
+        <div class="stat-card">
+          <h3>Last Scan</h3>
+          <p id="lastScan">Never</p>
+        </div>
+        <div class="stat-card">
+          <h3>Vulnerabilities</h3>
+          <p id="vulnCount">0</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 24px;">
+      <h3>🚀 Quick Actions</h3>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 15px;">
+        <a href="scan.html" class="btn">
+          <i class="fa-solid fa-rocket"></i> Start New Scan
+        </a>
+        <a href="agents.html" class="btn btn-secondary">
+          <i class="fa-solid fa-robot"></i> View Agents
+        </a>
+        <a href="rl.html" class="btn btn-secondary">
+          <i class="fa-solid fa-chartheatmap"></i> RL Heatmap
+        </a>
+        <a href="#" onclick="loadAdminPage(); return false;" class="btn btn-secondary">
+          <i class="fa-solid fa-shield-halved"></i> Admin Panel
+        </a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 24px;">
+      <h3>🛡️ Security Capabilities</h3>
+      <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="feature-card">
+          <i class="fa-solid fa-bug" style="color: var(--accent); font-size: 24px;"></i>
+          <h4 style="margin-top: 10px;">Vulnerability Scanning</h4>
+          <p>Automated security testing for LLM APIs and AI endpoints</p>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-users-gear" style="color: var(--accent); font-size: 24px;"></i>
+          <h4 style="margin-top: 10px;">Multi-Agent Pipeline</h4>
+          <p>4 specialized agents: Profiling, Strategy, Execution, Observer</p>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-brain" style="color: var(--accent); font-size: 24px;"></i>
+          <h4 style="margin-top: 10px;">RL-Based Prioritization</h4>
+          <p>Reinforcement learning for attack rule optimization</p>
+        </div>
+        <div class="feature-card">
+          <i class="fa-solid fa-file-shield" style="color: var(--accent); font-size: 24px;"></i>
+          <h4 style="margin-top: 10px;">PDF Reports</h4>
+          <p>Comprehensive vulnerability assessment reports</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 24px;">
+      <h3>🔄 How It Works</h3>
+      <div class="demo-flow">
+        <div class="demo-card">
+          <h3>1️⃣ Upload Target</h3>
+          <p>LLM API, chatbot, or prompt dataset</p>
+        </div>
+
+        <div class="demo-card">
+          <h3>2️⃣ Agent Analysis</h3>
+          <p>Profiling → Attack → Exploit → Observer</p>
+        </div>
+
+        <div class="demo-card">
+          <h3>3️⃣ Rule Matching</h3>
+          <p>OWASP LLM rules + RL prioritization</p>
+        </div>
+
+        <div class="demo-card">
+          <h3>4️⃣ Explainable Report</h3>
+          <p>Why detected, severity, mitigation (PDF)</p>
+        </div>
+      </div>
+    </div>
+
+    <section class="live-demo">
+      <h2>⚡ Live Interactive Demo</h2>
+      <p class="demo-desc">
+        Upload an AI system or API endpoint to see how our agents detect vulnerabilities
+        and generate explainable mitigation reports in real time.
+      </p>
+
+      <div class="demo-box">
+        <!-- INPUT -->
+        <div class="demo-input">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>Scan Type</label>
+            <select id="scanTarget">
+              <option value="api">API / LLM Endpoint</option>
+              <option value="dataset">Prompt Dataset (JSON / CSV)</option>
+            </select>
+          </div>
+
+          <!-- URL INPUT -->
+          <div class="form-group" style="margin-bottom: 0;">
+            <input id="demoUrlInput" type="text" placeholder="https://api.example.com/v1/chat" />
+          </div>
+
+          <button id="startDemoBtn" class="start-btn">
+            🚀 Start Demo
+          </button>
+        </div>
+
+        <!-- FILE UPLOAD (hidden by default) -->
+        <div id="demoFileUpload" class="demo-file-upload hidden">
+          <div class="file-drop-zone">
+            <input type="file" id="demoFile" accept=".json,.csv" />
+            <small>Supported formats: JSON, CSV (Prompt datasets)</small>
+          </div>
+        </div>
+
+        <!-- AGENTS -->
+        <div class="demo-agents">
+          <div class="agent-step" id="a-profile">🧠 Profiling</div>
+          <div class="agent-step" id="a-strategy">📐 Strategy</div>
+          <div class="agent-step" id="a-execute">⚔️ Execution</div>
+          <div class="agent-step" id="a-observe">👁 Observer</div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="demo-output" id="demoOutput" style="display:none;">
+          <h3>🚨 Vulnerabilities Detected</h3>
+
+          <div class="vuln-card">
+            <h4>Prompt Injection (LLM01)</h4>
+            <span class="severity high">High Severity</span>
+
+            <details>
+              <summary>Why detected?</summary>
+              <p>
+                The model accepted user-controlled input that altered system-level
+                instructions, matching OWASP LLM01 attack patterns.
+              </p>
+            </details>
+
+            <details>
+              <summary>Mitigation</summary>
+              <ul>
+                <li>Separate system and user prompts</li>
+                <li>Apply input sanitization</li>
+                <li>Enforce instruction hierarchy</li>
+              </ul>
+            </details>
+          </div>
+
+          <button id="downloadPdfBtn" class="btn btn-secondary" style="margin-top: 16px;">
+            📄 Download Explainable Report (PDF)
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<!-- Scripts loaded in correct order for SPA routing -->
+<script src="js/router.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/scan.js"></script>
+<script src="js/demo-scan.js"></script>
+
 </body>
 </html>
 

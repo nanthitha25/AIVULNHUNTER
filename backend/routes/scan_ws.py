@@ -7,7 +7,6 @@ during vulnerability scans.
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from backend.ws_manager import manager
-from backend.auth import get_current_admin
 from typing import Optional
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])

@@ -1,0 +1,63 @@
+<parameter name="content">/**
+ * Admin Login - OAuth2 compatible form submission
+ */
+
+const API_URL = "http://127.0.0.1:8000";
+
+async function adminLogin() {
+  console.log("Login clicked"); // 🔥 MUST PRINT
+
+  const username = document.getElementById("username")?.value || document.getElementById("user")?.value;
+  const password = document.getElementById("password")?.value || document.getElementById("pass")?.value;
+  const message = document.getElementById("message");
+
+  if (!username || !password) {
+    if (message) message.textContent = "Please enter username and password";
+    alert("Please enter username and password");
+    return;
+  }
+
+  // Use URLSearchParams for OAuth2 compatible form submission
+  const form = new URLSearchParams();
+  form.append("username", username);
+  form.append("password", password);
+
+  try {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: form
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("role", "admin");
+      
+      // Redirect to admin dashboard
+      window.location.href = "admin.html";
+    } else {
+      const error = await res.json();
+      if (message) message.textContent = error.detail || "Invalid login credentials";
+      alert(error.detail || "Invalid login credentials");
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    if (message) message.textContent = "Login failed: " + err.message;
+    alert("Login failed: " + err.message);
+  }
+}
+
+// Allow Enter key to submit
+document.addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    adminLogin();
+  }
+});
+
+// Export for use in HTML onclick
+window.adminLogin = adminLogin;
+</parameter>
+</invoke_name>

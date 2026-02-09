@@ -1,50 +1,99 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Admin | RedTeam AI</title>
-  <link rel="stylesheet" href="css/admin.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
+<!-- 🔐 ADMIN PANEL - SPA partial content only -->
+<!-- WARNING: This is NOT a standalone page. Do not open directly. -->
 
-<h1>🛡️ Vulnerability Rules (Admin)</h1>
+<div class="admin-panel">
+  <h2>Rule Management</h2>
 
-<button onclick="openRuleModal()"><i class="fa-solid fa-plus"></i> Add Rule</button>
-
-<table id="rulesTable">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Name</th>
-      <th>OWASP</th>
-      <th>Severity</th>
-      <th>Priority</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
-<!-- Modal -->
-<div id="ruleModal" class="modal">
-  <div class="modal-content">
-    <h3 id="modalTitle">Add Rule</h3>
-    <input id="ruleName" placeholder="Rule Name" />
-    <input id="ruleOWASP" placeholder="OWASP ID" />
-    <select id="ruleSeverity">
+  <form id="ruleForm">
+    <input id="ruleName" placeholder="Rule Name" required />
+    <input id="owaspId" placeholder="OWASP ID (LLM01)" required />
+    <select id="severity">
       <option>LOW</option>
       <option>MEDIUM</option>
       <option>HIGH</option>
-      <option>CRITICAL</option>
     </select>
-    <button onclick="saveRule()">Save</button>
-    <button onclick="closeModal()">Cancel</button>
-  </div>
+    <button type="submit">Add Rule</button>
+  </form>
+
+  <table id="rulesTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>OWASP</th>
+        <th>Severity</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </div>
 
-<script src="js/api.js"></script>
-<script src="js/admin.js"></script>
-</body>
-</html>
+<style>
+.admin-panel {
+  background: #0f172a;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.admin-panel h2 {
+  color: #fff;
+  margin-bottom: 20px;
+}
+#ruleForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+#ruleForm input,
+#ruleForm select {
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #fff;
+}
+#ruleForm button {
+  background: #22c55e;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+#ruleForm button:hover {
+  background: #16a34a;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #334155;
+}
+th {
+  color: #94a3b8;
+  font-weight: 600;
+}
+td {
+  color: #e2e8f0;
+}
+.delete-btn {
+  background: #ef4444;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: white;
+}
+.delete-btn:hover {
+  background: #dc2626;
+}
+tr:hover {
+  background: #1e293b;
+}
+</style>
 

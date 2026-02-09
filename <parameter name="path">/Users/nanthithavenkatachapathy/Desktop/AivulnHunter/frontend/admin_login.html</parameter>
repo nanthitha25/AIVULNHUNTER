@@ -1,0 +1,56 @@
+<parameter name="content"><!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2 class="logo">🛡 RedTeam AI</h2>
+    <ul class="nav-links">
+      <li data-page="index.html" onclick="goTo('index.html')">🏠 Dashboard</li>
+      <li data-page="admin_login.html" class="admin-only" onclick="goTo('admin_login.html')">🔐 Admin Login</li>
+      <li data-page="admin.html" class="admin-only" onclick="goTo('admin.html')">⚙️ Rules</li>
+      <li data-page="rl.html" onclick="goTo('rl.html')">🧠 RL Stats</li>
+    </ul>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <button onclick="goTo('index.html')">⬅ Back to Dashboard</button>
+
+    <h1>Admin Login</h1>
+
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+async function login() {
+  const res = await fetch("http://127.0.0.1:8000/admin/login", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      username: username.value,
+      password: password.value
+    })
+  });
+
+  const data = await res.json();
+  if (data.token) {
+    localStorage.setItem("adminToken", data.token);
+    window.location.href = "index.html";
+  } else {
+    alert("Login failed");
+  }
+}
+  </script>
+</body>
+</html>
+</parameter>

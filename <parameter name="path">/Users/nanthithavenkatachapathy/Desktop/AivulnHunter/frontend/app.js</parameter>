@@ -1,0 +1,24 @@
+<parameter name="content">/**
+ * Navigate to a different page
+ */
+function goTo(page) {
+  window.location.href = page;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const currentPage = window.location.pathname.split("/").pop();
+  const menuItems = document.querySelectorAll(".nav-links li");
+
+  menuItems.forEach(item => {
+    if (item.dataset.page === currentPage) {
+      item.classList.add("active");
+    }
+  });
+
+  // Role-based visibility
+  const token = localStorage.getItem("adminToken");
+  document.querySelectorAll(".admin-only").forEach(item => {
+    item.style.display = token ? "block" : "none";
+  });
+});
+</parameter>

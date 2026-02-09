@@ -8,39 +8,83 @@
 </head>
 <body>
 
-<header>
-  <h2>🛡️ RedTeam AI</h2>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="agents.html">Agents</a>
-    <a href="scan.html">Scan</a>
-    <a href="admin_login.html">Admin</a>
-  </nav>
-</header>
-
-<div class="container">
-  <h2>AI Red Team Agents</h2>
-
-  <div class="agent">
-    <h3><i class="fa-solid fa-bullseye"></i> Target Profiling Agent</h3>
-    <p>Analyzes system type, architecture, APIs, and attack surface.</p>
+<nav class="navbar">
+  <div class="navbar-inner">
+    <h2>🛡️ AivulnHunter</h2>
+    <div class="nav-right">
+      <a href="index.html">Home</a>
+      <a href="scan.html">Scan</a>
+      <a href="agents.html" class="active">Agents</a>
+      <a href="rl.html">RL Heatmap</a>
+      <a href="admin_login.html" class="admin-only">Admin</a>
+    </div>
   </div>
+</nav>
 
-  <div class="agent">
-    <h3><i class="fa-solid fa-chess-knight"></i> Attack Strategy Agent</h3>
-    <p>Chooses attack vectors based on rules and OWASP Top-11.</p>
-  </div>
+<main class="app-shell">
+  <section class="dashboard">
+    
+    <div class="page-title">
+      <h1>🤖 AI Red Team Agents</h1>
+      <p>Autonomous agents collaborating to detect and explain AI vulnerabilities</p>
+    </div>
 
-  <div class="agent">
-    <h3><i class="fa-solid fa-bug"></i> Exploitation Agent</h3>
-    <p>Executes controlled tests like prompt injection or SQL injection.</p>
-  </div>
+    <div class="agents-grid">
+      
+      <div class="agent-card">
+        <div class="agent-icon">🎯</div>
+        <h3>Target Profiling Agent</h3>
+        <p>Analyzes system type, architecture, APIs, and exposed attack surface to understand how the AI system can be tested.</p>
+        <span class="status idle">Ready</span>
+      </div>
 
-  <div class="agent">
-    <h3><i class="fa-solid fa-eye"></i> Observer Agent</h3>
-    <p>Generates explainable AI reports and mitigation steps.</p>
-  </div>
-</div>
+      <div class="agent-card">
+        <div class="agent-icon">🧠</div>
+        <h3>Attack Strategy Agent</h3>
+        <p>Selects attack vectors based on OWASP Top-11 and custom admin-defined security rules.</p>
+        <span class="status idle">Ready</span>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">⚔️</div>
+        <h3>Exploitation Agent</h3>
+        <p>Executes controlled tests such as prompt injection, jailbreaks, and data leakage simulations.</p>
+        <span class="status idle">Ready</span>
+      </div>
+
+      <div class="agent-card">
+        <div class="agent-icon">👁️</div>
+        <h3>Observer Agent</h3>
+        <p>Monitors responses, generates explainable AI insights, and provides mitigation recommendations.</p>
+        <span class="status idle">Ready</span>
+      </div>
+
+    </div>
+
+    <div class="card" style="margin-top: 32px;">
+      <h3>🔄 Agent Workflow</h3>
+      <div class="timeline">
+        <div class="timeline-step active">
+          <span class="step-icon">🎯</span>
+          <span class="step-text">Profiling</span>
+        </div>
+        <div class="timeline-step">
+          <span class="step-icon">🧠</span>
+          <span class="step-text">Strategy</span>
+        </div>
+        <div class="timeline-step">
+          <span class="step-icon">⚔️</span>
+          <span class="step-text">Execution</span>
+        </div>
+        <div class="timeline-step">
+          <span class="step-icon">👁️</span>
+          <span class="step-text">Observer</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+</main>
 
 </body>
 </html>

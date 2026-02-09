@@ -1,33 +1,43 @@
-async function login() {
-  const user = document.getElementById("user").value;
-  const pass = document.getElementById("pass").value;
-  const message = document.getElementById("message");
+/**
+ * Auth.js - Authentication handling
+ */
 
-  if (!user || !pass) {
-    message.textContent = "Please enter username and password";
+const API_BASE = "http://127.0.0.1:8000";
+
+/**
+ * Login function - call this from admin_login.html
+ */
+async function login() {
+  const username = document.getElementById("user").value;
+  const password = document.getElementById("pass").value;
+
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      username,
+      password
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    const errorBox = document.getElementById("login-error");
+    if (errorBox) {
+      errorBox.textContent = err.detail || "Login failed";
+    }
     return;
   }
 
-  try {
-    const res = await fetch(`${API_BASE}/admin/login`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        username: user,
-        password: pass
-      })
-    });
+  const data = await res.json();
+  localStorage.setItem("token", data.access_token);
+  localStorage.setItem("role", data.role);
 
-    if (res.ok) {
-      const data = await res.json();
-      localStorage.setItem("admin_token", data.access_token || data.token || "true");
-      window.location = "admin_rules.html";
-    } else {
-      message.textContent = "Invalid login credentials";
-    }
-  } catch (err) {
-    message.textContent = "Login failed: " + err.message;
-  }
+  // Navigate to admin panel
+  alert("Login successful! Redirecting to admin panel...");
+  window.location.href = "admin_rules.html";
 }
 
 // Allow Enter key to submit
@@ -36,4 +46,7 @@ document.addEventListener("keypress", function(e) {
     login();
   }
 });
+
+// Export functions globally
+window.login = login;
 

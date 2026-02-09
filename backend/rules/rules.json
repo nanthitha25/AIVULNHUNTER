@@ -2,33 +2,71 @@
   {
     "id": 1,
     "name": "Prompt Injection",
-    "target_type": "LLM",
-    "risk": 8,
     "owasp": "LLM01",
-    "enabled": true
+    "severity": "HIGH",
+    "priority": 1
   },
   {
     "id": 2,
     "name": "Broken Authentication",
-    "target_type": "API",
-    "risk": 7,
     "owasp": "A02",
-    "enabled": true
+    "severity": "HIGH",
+    "priority": 2
   },
   {
     "id": 3,
     "name": "Insecure Output Handling",
-    "target_type": "LLM",
-    "risk": 6,
     "owasp": "LLM02",
-    "enabled": true
+    "severity": "MEDIUM",
+    "priority": 3
   },
   {
     "id": 4,
     "name": "Training Data Poisoning",
-    "target_type": "LLM",
-    "risk": 9,
     "owasp": "LLM03",
-    "enabled": false
+    "severity": "CRITICAL",
+    "priority": 1
+  },
+  {
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1,
+    "id": "4b368bd7-27ed-4a1f-bb89-07cf741999b9"
+  },
+  {
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1,
+    "id": "ae5cd4ca-9273-46ad-a826-7980f2947900"
+  },
+  {
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1,
+    "id": "5bc98dce-e528-49fe-8ce3-666862f065e3"
+  },
+  {
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1,
+    "id": "7b218978-a902-469c-8a63-2d57f4d59002"
+  },
+  {
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1,
+    "id": "67e33717-2987-4586-93cb-ada033f712af"
+  },
+  {
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1,
+    "id": "57db6ef3-86c7-44df-a77c-47471fc94d03"
   }
 ]

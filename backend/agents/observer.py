@@ -11,7 +11,7 @@ Requires:
 """
 
 from typing import List, Dict
-from ..rl.learner import update_rule_priority
+from backend.rl.learner import update_rule_priority
 
 # Import LLM client if available
 try:
@@ -254,3 +254,25 @@ def get_llm_analysis(target: str, attack_type: str, findings: Dict) -> Dict:
         "mitigation": analysis.mitigation,
         "attack_vector": analysis.attack_vector
     }
+
+
+# ========== SIMPLE OBSERVE FUNCTION (for pipeline) ==========
+def observe(result: dict):
+    """
+    Simple observer function for the scan pipeline.
+    Analyzes execution result and adds explanation + mitigation.
+    
+    Args:
+        result: Execution result from execute_rule
+        
+    Returns:
+        Result with explanation and mitigation added
+    """
+    if result["status"] == "FAILED":
+        result["explanation"] = "System responded unexpectedly to adversarial input"
+        result["mitigation"] = "Apply strict input validation and output filtering"
+    else:
+        result["explanation"] = "System handled the input safely"
+        result["mitigation"] = "No action required"
+    
+    return result

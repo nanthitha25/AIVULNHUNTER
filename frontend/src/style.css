@@ -1,0 +1,517 @@
+/* React-specific component styles */
+
+/* Agents Grid */
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.agent-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 25px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.agent-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 20px rgba(94, 234, 212, 0.2);
+}
+
+.agent-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.agent-card h3 {
+  color: #5eead4;
+  margin: 0 0 10px 0;
+}
+
+.agent-description {
+  color: #cbd5e1;
+  margin-bottom: 15px;
+}
+
+.agent-card h4 {
+  color: #94a3b8;
+  margin: 15px 0 10px 0;
+  font-size: 14px;
+}
+
+.agent-responsibilities {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.agent-responsibilities li {
+  padding: 5px 0;
+  color: #cbd5e1;
+  font-size: 14px;
+  padding-left: 20px;
+  position: relative;
+}
+
+.agent-responsibilities li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #5eead4;
+}
+
+/* Workflow Diagram */
+.info-section {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 30px;
+  margin-top: 40px;
+}
+
+.info-section h2 {
+  color: #5eead4;
+  margin-top: 0;
+}
+
+.info-section p {
+  color: #cbd5e1;
+  line-height: 1.6;
+}
+
+.workflow-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin: 30px 0;
+  flex-wrap: wrap;
+}
+
+.workflow-step {
+  text-align: center;
+  padding: 20px;
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  min-width: 120px;
+}
+
+.step-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.step-name {
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.workflow-arrow {
+  color: #5eead4;
+  font-size: 24px;
+}
+
+.workflow-description {
+  text-align: center;
+  color: #94a3b8;
+}
+
+/* Admin specific styles */
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.admin-actions {
+  margin-bottom: 20px;
+}
+
+.add-rule-form {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 25px;
+  margin-top: 30px;
+}
+
+.add-rule-form h3 {
+  color: #5eead4;
+  margin-top: 0;
+}
+
+.add-rule-form input,
+.add-rule-form select {
+  margin-right: 10px;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #020617;
+  color: white;
+}
+
+.add-rule-form button {
+  padding: 10px 20px;
+  background: #5eead4;
+  color: #020617;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* Rule Table */
+.rule-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.rule-table th,
+.rule-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #1e293b;
+}
+
+.rule-table th {
+  color: #5eead4;
+}
+
+.rule-table button {
+  padding: 5px 10px;
+  margin-right: 5px;
+  font-size: 12px;
+}
+
+.rule-table button.danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Severity badges */
+.severity-critical {
+  background: #ef4444;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.severity-high {
+  background: #f97316;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.severity-medium {
+  background: #eab308;
+  color: black;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.severity-low {
+  background: #22c55e;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* Loader */
+.loader {
+  text-align: center;
+  padding: 40px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #1e293b;
+  border-top: 4px solid #5eead4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error {
+  background: #ef4444;
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+/* Results section */
+.results {
+  margin-top: 30px;
+}
+
+/* Placeholder message */
+.placeholder-message {
+  text-align: center;
+  padding: 40px;
+  color: #94a3b8;
+  background: #0f172a;
+  border: 1px dashed #1e293b;
+  border-radius: 12px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #111827;
+  padding: 24px;
+  width: 400px;
+  border-radius: 12px;
+  border: 1px solid #1e293b;
+}
+
+.modal h3 {
+  color: #5eead4;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.modal input,
+.modal select {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #020617;
+  color: white;
+  box-sizing: border-box;
+}
+
+.modal input::placeholder {
+  color: #64748b;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* Admin Rules Page */
+.admin-rules-container {
+  padding: 20px;
+}
+
+.admin-rules-container h2 {
+  color: #5eead4;
+  margin-bottom: 20px;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: #0f172a;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rules-table th,
+.rules-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #1e293b;
+}
+
+.rules-table th {
+  background: #1e293b;
+  color: #5eead4;
+  font-weight: 600;
+}
+
+.rules-table tbody tr:hover {
+  background: #0f172a;
+}
+
+.severity-badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Button styles */
+.btn-primary {
+  background: #5eead4;
+  color: #020617;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover {
+  background: #2dd4bf;
+}
+
+.btn-secondary {
+  background: #334155;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #475569;
+}
+
+/* Scan Results Page */
+.scan-results {
+  margin-top: 30px;
+  padding: 20px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+}
+
+.scan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.scan-header h2 {
+  color: #5eead4;
+  margin: 0;
+}
+
+.scan-header p {
+  color: #94a3b8;
+  margin: 5px 0 0 0;
+}
+
+.severity-summary {
+  margin-bottom: 25px;
+}
+
+.severity-summary h3 {
+  color: #cbd5e1;
+  margin-bottom: 15px;
+}
+
+.severity-counts {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.severity-summary .severity-badge {
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.agent-timeline {
+  margin-bottom: 25px;
+}
+
+.agent-timeline h3 {
+  color: #cbd5e1;
+  margin-bottom: 15px;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 15px;
+  background: #020617;
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+}
+
+.timeline-icon {
+  font-size: 24px;
+}
+
+.timeline-item span:nth-child(2) {
+  flex: 1;
+  color: #cbd5e1;
+}
+
+.timeline-status {
+  color: #22c55e !important;
+  font-weight: bold;
+}
+
+.rule-summary {
+  margin-bottom: 25px;
+}
+
+.rule-summary h3 {
+  color: #cbd5e1;
+  margin-bottom: 15px;
+}
+
+.rule-stats {
+  display: flex;
+  gap: 20px;
+}
+
+.stat {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.stat.fail {
+  background: #ef4444;
+  color: white;
+}
+
+.stat.pass {
+  background: #22c55e;
+  color: white;
+}
+
