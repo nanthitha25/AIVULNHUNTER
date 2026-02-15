@@ -4,7 +4,7 @@ Uses real RL scores computed from scan results
 """
 
 from fastapi import APIRouter, Depends
-from auth import require_role
+from backend.dependencies.auth_guard import require_role
 from services.scan_pipeline import SCANS_DB
 from rules.rules import load_rules
 import json

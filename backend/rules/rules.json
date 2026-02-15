@@ -8,65 +8,72 @@
   },
   {
     "id": 2,
-    "name": "Broken Authentication",
-    "owasp": "A02",
-    "severity": "HIGH",
-    "priority": 2
-  },
-  {
-    "id": 3,
     "name": "Insecure Output Handling",
     "owasp": "LLM02",
     "severity": "MEDIUM",
     "priority": 3
   },
   {
-    "id": 4,
+    "id": 3,
     "name": "Training Data Poisoning",
     "owasp": "LLM03",
     "severity": "CRITICAL",
     "priority": 1
   },
   {
-    "name": "Prompt Injection",
-    "owasp": "LLM01",
+    "id": 4,
+    "name": "Model Denial of Service",
+    "owasp": "LLM04",
     "severity": "HIGH",
-    "priority": 1,
-    "id": "4b368bd7-27ed-4a1f-bb89-07cf741999b9"
+    "priority": 2
   },
   {
-    "name": "Prompt Injection",
-    "owasp": "LLM01",
-    "severity": "HIGH",
-    "priority": 1,
-    "id": "ae5cd4ca-9273-46ad-a826-7980f2947900"
+    "id": 5,
+    "name": "Supply Chain Vulnerabilities",
+    "owasp": "LLM05",
+    "severity": "CRITICAL",
+    "priority": 1
   },
   {
-    "name": "Prompt Injection",
-    "owasp": "LLM01",
+    "id": 6,
+    "name": "Sensitive Information Disclosure",
+    "owasp": "LLM06",
     "severity": "HIGH",
-    "priority": 1,
-    "id": "5bc98dce-e528-49fe-8ce3-666862f065e3"
+    "priority": 1
   },
   {
-    "name": "Prompt Injection",
-    "owasp": "LLM01",
+    "id": 7,
+    "name": "Insecure Plugin Design",
+    "owasp": "LLM07",
     "severity": "HIGH",
-    "priority": 1,
-    "id": "7b218978-a902-469c-8a63-2d57f4d59002"
+    "priority": 2
   },
   {
-    "name": "Prompt Injection",
-    "owasp": "LLM01",
-    "severity": "HIGH",
-    "priority": 1,
-    "id": "67e33717-2987-4586-93cb-ada033f712af"
+    "id": 8,
+    "name": "Excessive Agency",
+    "owasp": "LLM08",
+    "severity": "CRITICAL",
+    "priority": 1
   },
   {
-    "name": "Prompt Injection",
-    "owasp": "LLM01",
+    "id": 9,
+    "name": "Overreliance",
+    "owasp": "LLM09",
+    "severity": "MEDIUM",
+    "priority": 3
+  },
+  {
+    "id": 10,
+    "name": "Model Theft",
+    "owasp": "LLM10",
     "severity": "HIGH",
-    "priority": 1,
-    "id": "57db6ef3-86c7-44df-a77c-47471fc94d03"
+    "priority": 2
+  },
+  {
+    "id": 11,
+    "name": "Broken Authentication",
+    "owasp": "API02",
+    "severity": "HIGH",
+    "priority": 2
   }
 ]

@@ -51,20 +51,45 @@ ATTACK_EXPLANATIONS = {
         "mitigation": "Data provenance verification, data sanitization pipelines, adversarial robustness testing, and training process monitoring",
         "owasp": "LLM03: Training Data Poisoning"
     },
-    "Goal Hijacking Test": {
-        "why": "Agent's goals or objectives can be redirected by adversarial inputs, causing it to pursue unintended objectives",
-        "mitigation": "Goal validation, context isolation, output monitoring, and explicit objective boundaries",
-        "owasp": "LLM05: Model Denial of Service"
+    "Model Denial of Service Test": {
+        "why": "Attacker overwhelms the model with resource-intensive requests, causing degradation or denial of service",
+        "mitigation": "Implement rate limiting, resource quotas, and input validation to prevent resource exhaustion",
+        "owasp": "LLM04: Model Denial of Service"
+    },
+    "Supply Chain Vulnerabilities Test": {
+        "why": "Dependency on compromised third-party models, data, or plugins allows attackers to compromise the system",
+        "mitigation": "Maintain SBOM, scan dependencies, and verify integrity of third-party components",
+        "owasp": "LLM05: Supply Chain Vulnerabilities"
+    },
+    "Insecure Plugin Design Test": {
+        "why": "Plugins accept insecure inputs or perform unsafe actions without proper validation or authorization",
+        "mitigation": "Enforce strict input validation, least privilege, and user confirmation for plugin actions",
+        "owasp": "LLM07: Insecure Plugin Design"
+    },
+    "Excessive Agency Test": {
+        "why": "Model is granted excessive permissions or autonomy to perform sensitive actions without human oversight",
+        "mitigation": "Implement human-in-the-loop, granular permissions, and limit autonomous capabilities",
+        "owasp": "LLM08: Excessive Agency"
+    },
+    "Overreliance Test": {
+        "why": "Users or systems blindly trust model outputs, leading to errors or security issues from hallucinations",
+        "mitigation": "Implement uncertainty markers, verifying outputs, and user education on AI limitations",
+        "owasp": "LLM09: Overreliance"
     },
     "Model Theft Test": {
-        "why": "Adversaries can extract model information, weights, or capabilities through carefully crafted queries and responses",
-        "mitigation": "Rate limiting, query filtering, output perturbation, and access logging",
-        "owasp": "A06:2021 - Vulnerable and Outdated Components"
+        "why": "Adversaries can extract model information, weights, or capabilities through carefully crafted queries",
+        "mitigation": "Rate limiting, query filtering, and monitoring for extraction patterns",
+        "owasp": "LLM10: Model Theft"
     },
     "Default / Weak Credentials Test": {
         "why": "System uses easily guessable or hardcoded credentials that can be exploited through brute force or credential stuffing",
         "mitigation": "Enforce strong password policies, implement account lockout, use multi-factor authentication, and eliminate hardcoded credentials",
-        "owasp": "A07:2021 - Identification and Authentication Failures"
+        "owasp": "API02: Broken Authentication"
+    },
+    "Goal Hijacking Test": {
+        "why": "Agent's goals or objectives can be redirected by adversarial inputs, causing it to pursue unintended objectives",
+        "mitigation": "Goal validation, context isolation, output monitoring, and explicit objective boundaries",
+        "owasp": "LLM01: Prompt Injection"
     }
 }
 

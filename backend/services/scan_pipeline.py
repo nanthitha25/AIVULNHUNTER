@@ -42,7 +42,13 @@ def run_scan_pipeline(target: str, rules_db: list = None, scan_id: str = None):
     if rules_db is None or len(rules_db) == 0:
         try:
             import json
-            with open("backend/rules/rules.json") as f:
+            from pathlib import Path
+            
+            # Try to locate rules.json relative to this file
+            base_dir = Path(__file__).resolve().parent.parent
+            rules_path = base_dir / "rules" / "rules.json"
+            
+            with open(rules_path) as f:
                 rules_db = json.load(f)
             print(f"[Pipeline] Loaded {len(rules_db)} rules from database")
         except Exception as e:
@@ -51,23 +57,30 @@ def run_scan_pipeline(target: str, rules_db: list = None, scan_id: str = None):
                 {
                     "id": "1",
                     "name": "Prompt Injection",
-                    "owasp_id": "LLM01",
+                    "owasp": "LLM01",
                     "severity": "HIGH",
                     "priority": 1
                 },
                 {
-                    "id": "2",
-                    "name": "Data Leakage",
-                    "owasp_id": "LLM02",
-                    "severity": "MEDIUM",
-                    "priority": 2
+                    "id": "3",
+                    "name": "Training Data Poisoning",
+                    "owasp": "LLM03",
+                    "severity": "CRITICAL",
+                    "priority": 1
                 },
                 {
-                    "id": "3",
-                    "name": "Information Disclosure",
-                    "owasp_id": "LLM03",
-                    "severity": "LOW",
-                    "priority": 3
+                    "id": "5",
+                    "name": "Supply Chain Vulnerabilities",
+                    "owasp": "LLM05",
+                    "severity": "CRITICAL",
+                    "priority": 1
+                },
+                {
+                    "id": "8",
+                    "name": "Excessive Agency",
+                    "owasp": "LLM08",
+                    "severity": "CRITICAL",
+                    "priority": 1
                 }
             ]
     
@@ -122,20 +135,23 @@ def run_scan_pipeline(target: str, rules_db: list = None, scan_id: str = None):
         await send_progress("Attack Strategy", 30, "Analyzing attack vectors...")
         await asyncio.sleep(0.3)
         
-        attack_plan = build_attack_plan(profile, rules_db)
-        await send_progress("Attack Strategy", 50, f"Plan created with {len(attack_plan)} attacks")
+        # Use the profiled target type to guide the attack strategy
+        detected_type = profile.get("type", "WEB_APP")
+        attack_plan = build_attack_plan(profile, rules_db, scan_type=detected_type)
+        await send_progress("Attack Strategy", 50, f"Plan created with {len(attack_plan)} attacks (Mode: {detected_type})")
         
         # Step 3: Execute + Observe for each attack (50-100%)
         total_attacks = len(attack_plan)
         
         for i, attack in enumerate(attack_plan):
-            attack_name = attack.get("rule", {}).get("name", f"Attack {i+1}")
+            attack_name = attack.get("name", f"Attack {i+1}")
             attack_progress = 50 + int((i / total_attacks) * 40)
             
             await send_progress("Executor", attack_progress, f"Executing: {attack_name}")
             
             try:
-                execution = execute_rule(target, attack)
+                # execute_rule expects (rule, target)
+                execution = execute_rule(attack, target)
                 observed = observe(execution)
                 
                 # RL update happens HERE - update rules based on scan result
@@ -155,11 +171,12 @@ def run_scan_pipeline(target: str, rules_db: list = None, scan_id: str = None):
                 SCANS_DB[scan_id]["results"] = results
                 
             except Exception as e:
+                print(f"[Pipeline] Error executing rule {attack.get('name')}: {e}")
                 results.append({
-                    "rule_id": attack["rule"].get("id", "unknown"),
-                    "name": attack["rule"].get("name", "Unknown"),
-                    "owasp": attack["rule"].get("owasp", "N/A"),
-                    "severity": attack["rule"].get("severity", "UNKNOWN"),
+                    "rule_id": attack.get("id", "unknown"),
+                    "name": attack.get("name", "Unknown"),
+                    "owasp": attack.get("owasp", "N/A"),
+                    "severity": attack.get("severity", "UNKNOWN"),
                     "status": "ERROR",
                     "error": str(e),
                     "explanation": "Scan encountered an error during execution",
@@ -185,25 +202,29 @@ def run_scan_pipeline(target: str, rules_db: list = None, scan_id: str = None):
             "results": results
         }
     
-    # Run the async pipeline
-    import asyncio
+    async def run_wrapper():
+        try:
+            await run_with_progress()
+        except Exception as e:
+            print(f"[Pipeline] Error: {e}")
+            SCANS_DB[scan_id]["status"] = "error"
+
+    # Use existing loop if available (FastAPI / Uvicorn), otherwise create new
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(run_with_progress())
-        loop.close()
-        return result
-    except Exception as e:
-        print(f"[Pipeline] Error: {e}")
-        SCANS_DB[scan_id]["status"] = "error"
-        return {
-            "scan_id": scan_id,
-            "status": "error",
-            "message": str(e),
-            "target": target,
-            "profile": {},
-            "results": []
-        }
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(run_wrapper())
+        else:
+            loop.run_until_complete(run_wrapper())
+    except RuntimeError:
+        asyncio.run(run_wrapper())
+
+    return {
+        "scan_id": scan_id,
+        "target": target,
+        "status": "started",
+        "results_url": f"/scan/{scan_id}"
+    }
 
 
 def get_scan_result(scan_id: str) -> dict:

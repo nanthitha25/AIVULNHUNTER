@@ -18,3 +18,17 @@ def get_current_user(authorization: str = Header(None)):
     
     return {"username": "admin", "role": "admin"}
 
+
+from fastapi import Depends
+
+def require_role(required_role: str):
+    """
+    Dependency to require a specific role.
+    Usage: @app.get("/", dependencies=[Depends(require_role("admin"))])
+    """
+    def role_checker(user: dict = Depends(get_current_user)):
+        if user.get("role") != required_role:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return user
+    return role_checker
+
