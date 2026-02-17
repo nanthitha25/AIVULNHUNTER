@@ -13,7 +13,7 @@ let rulesCache = [];
 async function loadRules() {
   try {
     const token = localStorage.getItem("token");
-    
+
     const res = await fetch("/rules/", {
       method: "GET",
       headers: {
@@ -102,7 +102,7 @@ function isAuthenticated() {
 }
 
 // Load rules on page load if authenticated
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
   if (isAuthenticated()) {
     loadRules();
   } else {

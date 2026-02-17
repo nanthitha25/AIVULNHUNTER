@@ -1,187 +1,669 @@
-// scan.js - Handles the frontend scan UI logic and API calls
-const API_URL = "http://127.0.0.1:8000"; // Assuming backend is on 8000
 
-async function startUnifiedScan() {
-    const targetUrl = document.getElementById('scanTarget').value;
-    const scanTypeRaw = document.getElementById('scanType').value;
-    const scanBtn = document.getElementById('scanBtn');
-    const resultsDiv = document.getElementById('scanResults');
-    const explainBox = document.getElementById('explainBox');
+const API_BASE = "";
 
-    if (!targetUrl) {
-        alert("Please enter a Target URL");
-        return;
+// Store latest scan result for PDF generation
+let latestScanResult = null;
+let latestTarget = null;
+let currentScanId = null;
+let progressWebSocket = null;
+
+// DOM Elements
+const scanTargetInput = document.getElementById("scanTarget");
+const scanTypeSelect = document.getElementById("scanType");
+const datasetFileInput = document.getElementById("datasetFile");
+const urlInputDiv = document.getElementById("urlInput");
+const datasetInputDiv = document.getElementById("datasetInput");
+const resultBox = document.getElementById("scanResults");
+const downloadBtn = document.getElementById("downloadPdfBtn");
+
+// Check authentication
+function checkAuth() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    if (resultBox) {
+      resultBox.innerHTML = `
+        <div class="info-box">
+          <h3>🔐 Login Required</h3>
+          <p>Please login to start a vulnerability scan.</p>
+          <button class="btn-primary" onclick="window.location.href='admin_login.html'">
+            Go to Login
+          </button>
+        </div>
+      `;
     }
+    return false;
+  }
+  return true;
+}
 
-    // Map frontend scan type to backend target_type
-    let targetType = "LLM";
-    if (scanTypeRaw === "API") targetType = "API";
+// Toggle Input Fields
+function toggleScanInput() {
+  const type = document.getElementById("scanType").value;
+  urlInputDiv.style.display = type === "DATASET" ? "none" : "block";
+  datasetInputDiv.style.display = type === "DATASET" ? "block" : "none";
+}
 
-    scanBtn.disabled = true;
-    scanBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning...';
-    resultsDiv.innerHTML = '<p class="muted">Scan in progress... Please wait.</p>';
-    explainBox.style.display = 'none';
+// Initialize on page load
+window.addEventListener('load', () => {
+  checkAuth();
 
-    // Reset timeline
-    updateTimeline('agent-profile', 'RUNNING');
-    updateTimeline('agent-strategy', 'WAITING');
-    updateTimeline('agent-execute', 'WAITING');
-    updateTimeline('agent-observer', 'WAITING');
+  // Add Enter key support for URL input
+  if (scanTargetInput) {
+    scanTargetInput.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        startUnifiedScan();
+      }
+    });
+  }
+});
 
-    const token = localStorage.getItem('token');
+// WebSocket Connection for Progress
+function connectProgressWebSocket(scanId) {
+  if (progressWebSocket) {
+    progressWebSocket.close();
+  }
 
+  // Connect to WebSocket with scan ID
+  const wsUrl = `ws://${window.location.host}/ws/scan/${scanId}`;
+  console.log(`[WS] Connecting to ${wsUrl}`);
+
+  progressWebSocket = new WebSocket(wsUrl);
+
+  progressWebSocket.onopen = () => {
+    console.log(`[WS] Connected for scan ${scanId}`);
+  };
+
+  progressWebSocket.onmessage = (event) => {
     try {
-        const payload = {
-            target: targetUrl,
-            target_type: targetType
-        };
+      const data = JSON.parse(event.data);
+      console.log(`[WS] Progress:`, data);
 
-        const response = await fetch(`${API_URL}/scan/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errBase = await response.json();
-            throw new Error(errBase.detail || "Scan failed or free limit reached. Please log in.");
+      // Update progress bar if available
+      if (data.progress !== undefined && data.progress >= 0) {
+        const progressBar = document.getElementById("scanProgress");
+        if (progressBar) {
+          progressBar.value = data.progress;
+          progressBar.style.display = "block";
         }
 
-        // Pseudo progress updates for visual effect
-        setTimeout(() => { updateTimeline('agent-profile', 'COMPLETED'); updateTimeline('agent-strategy', 'RUNNING'); }, 1000);
-        setTimeout(() => { updateTimeline('agent-strategy', 'COMPLETED'); updateTimeline('agent-execute', 'RUNNING'); }, 2000);
-        setTimeout(() => { updateTimeline('agent-execute', 'COMPLETED'); updateTimeline('agent-observer', 'RUNNING'); }, 3500);
+        const progressPercent = document.getElementById("progressPercent");
+        if (progressPercent) {
+          progressPercent.textContent = `${data.progress}%`;
+          progressPercent.style.display = "inline";
+        }
+      }
 
-        const kickoffData = await response.json();
-        const scanId = kickoffData.scan_id;
+      // Update agent status text
+      const agentStatus = document.getElementById("agentStatus");
+      if (agentStatus && data.details) {
+        agentStatus.textContent = data.details;
+      }
 
-        setTimeout(async () => {
-            try {
-                const res = await fetch(`${API_URL}/scan/${scanId}`, {
-                    headers: {
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                    }
-                });
-                const finalData = await res.json();
-                currentScanData = finalData;
-                updateTimeline('agent-observer', 'COMPLETED');
+      // Map agent names to DOM element IDs
+      const agentMapping = {
+        "Target Profiling": "agent-profile",
+        "Profiling": "agent-profile",
+        "Attack Strategy": "agent-strategy",
+        "Strategy": "agent-strategy",
+        "Executor": "agent-execute",
+        "Execution": "agent-execute",
+        "Observer": "agent-observer",
+        "Analysis & XAI": "agent-observer"
+      };
 
-                // Set total_risk attribute if missing
-                if (finalData.risk_summary) {
-                    finalData.total_risk = finalData.risk_summary.overall_risk_score;
-                } else if (finalData.results) {
-                    finalData.total_risk = finalData.results.reduce((acc, r) => acc + (r.risk_score || 0), 0);
-                }
+      const elementId = agentMapping[data.agent];
 
-                renderResults(finalData);
-            } catch (err) {
-                console.error("Error fetching results:", err);
-                resultsDiv.innerHTML = `<p style="color:red">Failed to load final scan results.</p>`;
-            }
-            scanBtn.disabled = false;
-            scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
-        }, 4500);
+      if (elementId) {
+        const el = document.getElementById(elementId);
+        if (el) {
+          const statusEl = el.querySelector(".step-status");
 
-    } catch (error) {
-        resultsDiv.innerHTML = `<p style="color:red">Error: ${error.message}</p>`;
+          // Determine status from progress value
+          if (data.progress === 100 || data.details?.includes("complete") || data.details?.includes("found")) {
+            el.classList.remove("active");
+            el.classList.add("done");
+            el.classList.remove("running");
+            if (statusEl) statusEl.textContent = "DONE";
+          } else if (data.progress > 0 || data.details) {
+            el.classList.add("active");
+            el.classList.remove("done");
+            el.classList.remove("error");
+            if (statusEl) statusEl.textContent = "RUNNING";
+          }
+        }
+      }
+
+      // Check for completion
+      if (data.status === "done" || data.progress === 100) {
+        completeAllAgents();
+
+        // Fetch results if scan_id provided
+        if (data.scan_id) {
+          fetchScanResults(data.scan_id);
+        }
+      }
+
+      // Handle error
+      if (data.agent === "Error" || data.error) {
+        handleError(data.error || "An error occurred during scan");
+      }
+    } catch (e) {
+      console.error("[WS] Error:", e);
+    }
+  };
+
+  progressWebSocket.onclose = () => {
+    console.log("[WS] Disconnected");
+    // Re-enable scan button when WebSocket closes
+    const scanBtn = document.getElementById("scanBtn");
+    if (scanBtn) {
+      scanBtn.disabled = false;
+      scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
+    }
+  };
+
+  progressWebSocket.onerror = (error) => {
+    console.error("[WS] Error:", error);
+  };
+
+  return progressWebSocket;
+}
+
+function disconnectProgressWebSocket() {
+  if (progressWebSocket) {
+    progressWebSocket.close();
+    progressWebSocket = null;
+  }
+}
+
+// Update Progress Bar
+function updateProgressBar(progress, agent, details) {
+  const progressBar = document.getElementById("scanProgress");
+  if (progressBar && progress >= 0) {
+    progressBar.value = progress;
+    progressBar.style.display = "block";
+  }
+
+  const progressPercent = document.getElementById("progressPercent");
+  if (progressPercent) {
+    if (progress >= 0) {
+      progressPercent.textContent = `${progress}%`;
+      progressPercent.style.display = "inline";
+    }
+  }
+
+  const agentStatus = document.getElementById("agentStatus");
+  if (agentStatus) {
+    agentStatus.textContent = details || agent;
+  }
+}
+
+// Update Agent Timeline Status
+function updateAgentStatus(agent) {
+  const agentMapping = {
+    "Target Profiling": "agent-profile",
+    "Profiling": "agent-profile",
+    "Attack Strategy": "agent-strategy",
+    "Strategy": "agent-strategy",
+    "Attack Execution": "agent-execute",
+    "Execution": "agent-execute",
+    "Analysis & XAI": "agent-observer",
+    "Observer": "agent-observer"
+  };
+
+  const elementId = agentMapping[agent];
+  if (elementId) {
+    setAgentStatus(elementId, "active");
+  }
+}
+
+function setAgentStatus(id, status) {
+  const el = document.getElementById(id);
+  if (el) {
+    const statusEl = el.querySelector(".step-status");
+    if (status === "active") {
+      el.classList.add("active");
+      el.classList.remove("done", "error");
+      if (statusEl) statusEl.textContent = "RUNNING";
+    } else if (status === "done") {
+      el.classList.remove("active");
+      el.classList.add("done");
+      el.classList.remove("error");
+      if (statusEl) statusEl.textContent = "DONE";
+    } else if (status === "error") {
+      el.classList.remove("active");
+      el.classList.remove("done");
+      el.classList.add("error");
+      if (statusEl) statusEl.textContent = "ERROR";
+    }
+  }
+}
+
+function completeAllAgents() {
+  ["agent-profile", "agent-strategy", "agent-execute", "agent-observer"].forEach(id => {
+    setAgentStatus(id, "done");
+  });
+
+  const scanBtn = document.getElementById("scanBtn");
+  if (scanBtn) {
+    scanBtn.disabled = false;
+    scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
+  }
+}
+
+function resetTimeline() {
+  const agents = ["agent-profile", "agent-strategy", "agent-execute", "agent-observer"];
+  agents.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove("active", "done", "error");
+      const statusEl = el.querySelector(".step-status");
+      if (statusEl) statusEl.textContent = "WAITING";
+    }
+  });
+
+  const progressBar = document.getElementById("scanProgress");
+  if (progressBar) {
+    progressBar.value = 0;
+    progressBar.style.display = "none";
+  }
+
+  const progressPercent = document.getElementById("progressPercent");
+  if (progressPercent) {
+    progressPercent.style.display = "none";
+  }
+
+  const agentStatus = document.getElementById("agentStatus");
+  if (agentStatus) {
+    agentStatus.textContent = "";
+  }
+}
+
+// Unified Scan Function
+async function startUnifiedScan() {
+  console.log("Scan clicked");
+
+  const type = document.getElementById("scanType").value;
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "admin_login.html";
+    return;
+  }
+
+  // Disable scan button during scan
+  const scanBtn = document.getElementById("scanBtn");
+  if (scanBtn) {
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Scanning...';
+  }
+
+  if (type === "API") {
+    const target = scanTargetInput ? scanTargetInput.value.trim() : "";
+
+    if (!target) {
+      alert("Please enter a target URL (e.g., https://api.example.com/llm)");
+      if (scanBtn) {
         scanBtn.disabled = false;
         scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
-
-        updateTimeline('agent-profile', 'ERROR');
-        updateTimeline('agent-strategy', 'ERROR');
-        updateTimeline('agent-execute', 'ERROR');
-        updateTimeline('agent-observer', 'ERROR');
+      }
+      return;
     }
+
+    latestTarget = target;
+    await runAPIScan(target, token);
+  } else {
+    const file = datasetFileInput ? datasetFileInput.files[0] : null;
+
+    if (!file) {
+      alert("Please select a dataset file to upload");
+      if (scanBtn) {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
+      }
+      return;
+    }
+
+    await runDatasetScan(file, token);
+  }
 }
 
-function renderResults(data) {
-    const resultsDiv = document.getElementById('scanResults');
-    const explainBox = document.getElementById('explainBox');
+// Run API/LLM Endpoint Scan
+async function runAPIScan(target, token) {
+  // Show loading
+  resultBox.innerHTML = `
+    <div class="info-box">
+      <h3>🔍 Starting Scan...</h3>
+      <p>Target: ${target}</p>
+      <p>Running multi-agent vulnerability assessment pipeline.</p>
+    </div>
+  `;
 
-    if (!data.results || data.results.length === 0) {
-        resultsDiv.innerHTML = `<p class="muted">No vulnerabilities detected! Risk Score: ${data.total_risk || 0}/10</p>`;
-        return;
-    }
+  // Reset and show timeline
+  resetTimeline();
+  showTimeline();
 
-    let html = `<h4>Total Risk Score: ${(data.total_risk || 0).toFixed(1)}/10</h4>`;
-    html += `<ul class="vuln-list">`;
-
-    data.results.forEach(res => {
-        let severityClass = res.status === 'DETECTED' ? 'high' : 'low';
-        html += `
-            <li class="vuln-item">
-                <span class="tag ${severityClass}">${res.status}</span>
-                <strong>${res.rule_name || res.rule_id} (${res.owasp_category || 'General'})</strong>
-                <p>${res.details || res.explanation || 'No details'}</p>
-                <div class="mitigation"><strong>Mitigation:</strong> ${res.mitigation || 'N/A'}</div>
-            </li>
-        `;
+  try {
+    // Call the scan API
+    const response = await fetch(`${API_BASE}/scan`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        target: target,
+        scan_type: "llm"
+      })
     });
 
-    html += `</ul>`;
-    resultsDiv.innerHTML = html;
-
-    // Show explain box for first detected issue
-    const firstVuln = data.results.find(r => r.status === 'DETECTED');
-    if (firstVuln) {
-        explainBox.style.display = 'block';
-        document.getElementById('vulnSeverity').textContent = firstVuln.status;
-        document.getElementById('vulnName').textContent = firstVuln.rule_name || firstVuln.rule_id;
-        document.getElementById('vulnReason').textContent = firstVuln.details || firstVuln.explanation || "Vulnerability behavior was observed in target response.";
-        document.getElementById('aiReasoning').textContent = `Evidence:\n` + (firstVuln.evidence || firstVuln.details || "No explicit evidence collected.");
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || "Scan failed");
     }
+
+    const data = await response.json();
+    console.log("SCAN RESULT:", data);
+
+    // Store results
+    latestScanResult = data;
+    currentScanId = data.scan_id;
+
+    // Get results from the expected format
+    const results = data.results || [];
+
+    // Render results
+    renderResults(results);
+
+    // Show download button
+    if (downloadBtn) downloadBtn.style.display = "inline-block";
+
+    // Complete timeline
+    completeAllAgents();
+
+  } catch (err) {
+    console.error("Scan error:", err);
+    handleError(err.message);
+  }
 }
 
-function toggleScanInput() {
-    const type = document.getElementById('scanType').value;
-    if (type === 'DATASET') {
-        document.getElementById('urlInput').style.display = 'none';
-        document.getElementById('datasetInput').style.display = 'block';
-    } else {
-        document.getElementById('urlInput').style.display = 'block';
-        document.getElementById('datasetInput').style.display = 'none';
-    }
-}
+// Run Dataset Upload Scan
+async function runDatasetScan(file, token) {
+  resultBox.innerHTML = `
+    <div class="info-box">
+      <h3>📁 Processing Dataset...</h3>
+      <p>File: ${file.name}</p>
+    </div>
+  `;
 
-// Store the latest scan data globally so we can generate the PDF
-let currentScanData = null;
+  resetTimeline();
+  showTimeline();
 
-function downloadReport() {
-    if (!currentScanData) {
-        alert("Please run a scan first to generate a report.");
-        return;
-    }
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-    const token = localStorage.getItem('token');
+    // Read the file content
+    const text = await file.text();
+    const targets = JSON.parse(text);
 
-    // We can't fetch files directly via JSON, we need to handle it as a blob
-    fetch(`${API_URL}/scan/report`, {
+    if (Array.isArray(targets) && targets.length > 0) {
+      // Scan first target from dataset
+      const firstTarget = targets[0];
+      const targetUrl = firstTarget.url || firstTarget.id || JSON.stringify(firstTarget);
+
+      latestTarget = targetUrl;
+
+      const response = await fetch(`${API_BASE}/scan`, {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
-            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify(currentScanData)
+        body: JSON.stringify({
+          target: targetUrl,
+          scan_type: "llm"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Scan failed");
+      }
+
+      const data = await response.json();
+      latestScanResult = data;
+      currentScanId = data.scan_id;
+
+      const results = data.results || [];
+      renderResults(results);
+
+      if (downloadBtn) downloadBtn.style.display = "inline-block";
+
+      // Complete timeline
+      completeAllAgents();
+    } else {
+      throw new Error("Invalid dataset format");
+    }
+
+  } catch (err) {
+    console.error("Dataset scan error:", err);
+    handleError(err.message);
+  }
+}
+
+// Fetch scan results by ID
+async function fetchScanResults(scanId) {
+  const token = localStorage.getItem("token");
+
+  try {
+    const response = await fetch(`${API_BASE}/scan/${scanId}/results`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch results");
+    }
+
+    const data = await response.json();
+    renderResults(data.results || []);
+
+    if (downloadBtn) downloadBtn.style.display = "inline-block";
+
+  } catch (err) {
+    console.error("Error fetching results:", err);
+  }
+}
+
+// Render Results
+function renderResults(results) {
+  if (!results || results.length === 0) {
+    resultBox.innerHTML = `
+      <div class="result-card passed">
+        <strong>✅ No Vulnerabilities Found</strong><br>
+        The security scan completed successfully with no issues detected.
+      </div>
+    `;
+    if (downloadBtn) downloadBtn.style.display = "none";
+    return;
+  }
+
+  let html = "";
+  results.forEach(r => {
+    const statusClass = r.status === "VULNERABLE" || r.status === "ERROR" ? "failed" : "passed";
+    const icon = r.status === "VULNERABLE" || r.status === "ERROR" ? "⚠️" : "✅";
+
+    html += `
+      <div class="result-card ${statusClass}" style="animation: fadeIn 0.6s ease;">
+        <strong>${icon} ${r.attack || r.name || 'Vulnerability'} (${r.owasp_reference || r.owasp || 'N/A'})</strong><br>
+        Status: ${r.status}<br>
+        <em>${r.why || r.explanation || 'No explanation available'}</em><br>
+        <b>Mitigation:</b> ${r.mitigation || 'No mitigation available'}
+      </div>
+    `;
+  });
+
+  resultBox.innerHTML = html;
+}
+
+// Handle error
+function handleError(message) {
+  const scanBtn = document.getElementById("scanBtn");
+  if (scanBtn) {
+    scanBtn.disabled = false;
+    scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
+  }
+
+  disconnectProgressWebSocket();
+
+  // Mark failed agent
+  setAgentStatus("agent-execute", "error");
+
+  resultBox.innerHTML = `
+    <div class="card ERROR">
+      <h3>❌ Scan Failed</h3>
+      <p>${message}</p>
+    </div>
+  `;
+  hideTimeline();
+}
+
+// Download PDF Report
+async function downloadPDF() {
+  if (!latestScanResult) {
+    alert("No scan available. Please run a scan first.");
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+
+  try {
+    // Generate PDF
+    const response = await fetch(`${API_BASE}/report/generate`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        target: latestTarget || latestScanResult.target,
+        results: latestScanResult.results || [],
+        scan_id: latestScanResult.scan_id
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to generate PDF");
+    }
+
+    const data = await response.json();
+
+    // Open PDF in new tab
+    if (data.download_url) {
+      window.open(data.download_url, "_blank");
+    }
+
+  } catch (err) {
+    console.error("PDF generation error:", err);
+    alert("Failed to generate PDF: " + err.message);
+  }
+}
+
+// Progress Bar Functions
+function showTimeline() {
+  const progressBar = document.getElementById("scanProgress");
+  if (progressBar) progressBar.style.display = "block";
+  const progressPercent = document.getElementById("progressPercent");
+  if (progressPercent) progressPercent.style.display = "inline";
+}
+
+function hideTimeline() {
+  const progressBar = document.getElementById("scanProgress");
+  if (progressBar) progressBar.style.display = "none";
+  const progressPercent = document.getElementById("progressPercent");
+  if (progressPercent) progressPercent.style.display = "none";
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  disconnectProgressWebSocket();
+});
+
+// ========== WebSocket Async Scan (Real-time Progress) ==========
+function startAsyncScan() {
+  const target = document.getElementById("scanTarget").value;
+  const timeline = document.getElementById("timeline");
+
+  if (!target) {
+    alert("Please enter a target URL");
+    return;
+  }
+
+  if (timeline) {
+    timeline.innerHTML = "";
+  }
+
+  const ws = new WebSocket(`ws://${window.location.host}/ws/scan`);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ target }));
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    const li = document.createElement("li");
+    li.innerText = `${data.agent}: ${data.status}`;
+    if (timeline) {
+      timeline.appendChild(li);
+    }
+
+    if (data.status === "done") {
+      if (data.result && data.result.results) {
+        renderResults(data.result.results);
+        enablePdfDownload(data.result);
+      }
+      ws.close();
+    }
+  };
+
+  ws.onerror = (error) => {
+    console.error("WebSocket error:", error);
+    alert("Connection error. Please try again.");
+  };
+}
+
+// Enable PDF Download Button
+function enablePdfDownload(scanResult) {
+  fetch("/report/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({
+      target: scanResult.target,
+      results: scanResult.results
     })
-        .then(res => {
-            if (!res.ok) throw new Error("Failed to generate PDF report");
-            return res.blob();
-        })
-        .then(blob => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `aivulnhunter_report_${currentScanData.scan_id.substring(0, 8)}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            a.remove();
-        })
-        .catch(err => {
-            console.error("PDF generation error:", err);
-            alert("Sorry, an error occurred while downloading the report.");
-        });
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.download_url) {
+        const btn = document.createElement("button");
+        btn.innerText = "⬇ Download PDF Report";
+        btn.className = "btn-primary";
+        btn.onclick = () => {
+          window.open(data.download_url, "_blank");
+        };
+        const resultBox = document.getElementById("scanResults");
+        if (resultBox) {
+          resultBox.appendChild(btn);
+        }
+      }
+    })
+    .catch(err => {
+      console.error("PDF generation error:", err);
+    });
 }

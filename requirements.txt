@@ -29,3 +29,8 @@ typing_extensions==4.15.0
 urllib3==2.6.3
 uvicorn==0.40.0
 websockets==16.0
+
+# PostgreSQL Database Dependencies
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.13.1
