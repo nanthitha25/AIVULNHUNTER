@@ -19,25 +19,23 @@ import sys
 if __name__ == "__main__":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-# Existing routers
-from backend.routes.scan_ws   import router as scan_ws_router
-from backend.routes.rl        import router as rl_router
-from backend.routes.rl_stats  import router as rl_stats_router
-from backend.routes.report    import router as report_router
-
-# Extended / replaced routers
-from backend.routes.auth      import router as auth_router
-from backend.routes.scan      import router as scan_router
-from backend.routes.rules     import router as rules_router
-
-# New routers
-from backend.routes.admin     import router as admin_router
-from backend.routes.demo      import router as demo_router
+from backend.routes.auth import router as auth_router
+from backend.routes.scan import router as scan_router
+from backend.routes.scan_ws import router as scan_ws_router
+from backend.routes.rules import router as rules_router
+from backend.routes.rl import router as rl_router
+from backend.routes.rl_stats import router as rl_stats_router
+from backend.routes.report import router as report_router
+from backend.routes.admin import router as admin_router
+from backend.routes.demo import router as demo_router
 from backend.routes.assistant import router as assistant_router
 
 # Initialize database on startup
-from backend.database.sqlite_db import init_db
-init_db()
+try:
+    from backend.database.sqlite_db import init_db
+    init_db()
+except ImportError:
+    pass
 
 app = FastAPI(
     title="AIVulnHunter API",
@@ -58,17 +56,16 @@ app.add_middleware(
 )
 
 # ── API Routers only — no static file mounts ─────────────────────── #
-app.include_router(auth_router)
-app.include_router(scan_router)
-app.include_router(scan_ws_router)
-app.include_router(rules_router)
-app.include_router(admin_router)
-app.include_router(demo_router)
-app.include_router(rl_router)
-app.include_router(rl_stats_router)
-app.include_router(report_router)
-app.include_router(assistant_router)
-
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(scan_router, prefix="/api/v1")
+app.include_router(scan_ws_router, prefix="/api/v1")
+app.include_router(rules_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(demo_router, prefix="/api/v1")
+app.include_router(rl_router, prefix="/api/v1")
+app.include_router(rl_stats_router, prefix="/api/v1")
+app.include_router(report_router, prefix="/api/v1")
+app.include_router(assistant_router, prefix="/api/v1")
 
 @app.get("/health")
 def health_check():
@@ -80,15 +77,13 @@ def health_check():
         "docs": "/docs",
     }
 
-
 @app.get("/")
 def root():
     return {
         "message": "AIVulnHunter API is running.",
         "docs": "http://localhost:8000/docs",
-        "frontend": "Open frontend/index.html directly in your browser",
+        "frontend": "Open frontend/index.html or use Next.js dashboard",
     }
-
 
 if __name__ == "__main__":
     import uvicorn
