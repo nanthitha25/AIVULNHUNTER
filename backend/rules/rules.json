@@ -1,0 +1,79 @@
+[
+  {
+    "id": 1,
+    "name": "Prompt Injection",
+    "owasp": "LLM01",
+    "severity": "HIGH",
+    "priority": 1
+  },
+  {
+    "id": 2,
+    "name": "Insecure Output Handling",
+    "owasp": "LLM02",
+    "severity": "MEDIUM",
+    "priority": 3
+  },
+  {
+    "id": 3,
+    "name": "Training Data Poisoning",
+    "owasp": "LLM03",
+    "severity": "CRITICAL",
+    "priority": 1
+  },
+  {
+    "id": 4,
+    "name": "Model Denial of Service",
+    "owasp": "LLM04",
+    "severity": "HIGH",
+    "priority": 2
+  },
+  {
+    "id": 5,
+    "name": "Supply Chain Vulnerabilities",
+    "owasp": "LLM05",
+    "severity": "CRITICAL",
+    "priority": 1
+  },
+  {
+    "id": 6,
+    "name": "Sensitive Information Disclosure",
+    "owasp": "LLM06",
+    "severity": "HIGH",
+    "priority": 1
+  },
+  {
+    "id": 7,
+    "name": "Insecure Plugin Design",
+    "owasp": "LLM07",
+    "severity": "HIGH",
+    "priority": 2
+  },
+  {
+    "id": 8,
+    "name": "Excessive Agency",
+    "owasp": "LLM08",
+    "severity": "CRITICAL",
+    "priority": 1
+  },
+  {
+    "id": 9,
+    "name": "Overreliance",
+    "owasp": "LLM09",
+    "severity": "MEDIUM",
+    "priority": 3
+  },
+  {
+    "id": 10,
+    "name": "Model Theft",
+    "owasp": "LLM10",
+    "severity": "HIGH",
+    "priority": 2
+  },
+  {
+    "id": 11,
+    "name": "Broken Authentication",
+    "owasp": "API02",
+    "severity": "HIGH",
+    "priority": 2
+  }
+]

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Demo Mode - AIVulnHunter</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .demo-banner {
+      background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+      border-radius: 12px;
+      padding: 20px 28px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .demo-banner i { font-size: 2rem; opacity: 0.9; }
+    .demo-banner h2 { margin: 0; font-size: 1.2rem; }
+    .demo-banner p  { margin: 4px 0 0; opacity: 0.85; font-size: 0.9rem; }
+
+    .risk-badge {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 99px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .risk-CRITICAL { background:#b91c1c; color:#fff; }
+    .risk-HIGH     { background:#c2410c; color:#fff; }
+    .risk-MEDIUM   { background:#d97706; color:#fff; }
+    .risk-LOW      { background:#15803d; color:#fff; }
+    .risk-SECURE   { background:#1d4ed8; color:#fff; }
+
+    .vuln-card {
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 18px;
+      background: #161b22;
+      transition: transform 0.15s;
+    }
+    .vuln-card:hover { transform: translateY(-2px); }
+    .vuln-card h4 { margin: 0 0 10px; display:flex; align-items:center; gap:10px; }
+
+    .evidence-box {
+      background: #0d1117;
+      border-left: 3px solid #58a6ff;
+      padding: 10px 14px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #8b949e;
+      margin: 8px 0;
+    }
+
+    .mitigation-list { padding-left: 1.2em; margin: 6px 0; }
+    .mitigation-list li { color: #8b949e; font-size: 0.88rem; margin-bottom: 4px; }
+
+    .mcp-timeline {
+      display: flex;
+      gap: 0;
+      margin: 16px 0 24px;
+      flex-wrap: wrap;
+    }
+    .mcp-step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      color: #58a6ff;
+    }
+    .mcp-arrow { color: #444; font-size: 1.1rem; padding: 0 6px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .summary-stat {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 16px 18px;
+      text-align: center;
+    }
+    .summary-stat .val { font-size: 2rem; font-weight: 700; color: #58a6ff; }
+    .summary-stat .lbl { font-size: 0.8rem; color: #8b949e; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner">
+    <h2>🛡️ AIVulnHunter</h2>
+    <div class="nav-right">
+      <a href="index.html">Home</a>
+      <a href="scan.html">Scan</a>
+      <a href="demo.html" class="active">Demo</a>
+      <a href="rl.html">RL Heatmap</a>
+      <a href="admin_login.html" class="admin-only">Admin</a>
+    </div>
+  </div>
+</nav>
+
+<main class="app-shell">
+  <section class="dashboard">
+
+    <div class="demo-banner">
+      <i class="fa-solid fa-flask-vial"></i>
+      <div>
+        <h2>Demo Mode — Pre-populated Scan Example</h2>
+        <p>No real scan is running. This shows exactly how AIVulnHunter processes a real LLM target.</p>
+      </div>
+    </div>
+
+    <div class="page-title">
+      <h1>🔬 Demo Vulnerability Assessment</h1>
+      <p>Target: <code id="demoTarget">Loading...</code> &nbsp;|&nbsp; Type: <span id="demoType">LLM</span></p>
+    </div>
+
+    <!-- MCP Pipeline Timeline -->
+    <div class="card">
+      <h3>🤖 MCP Agent Pipeline</h3>
+      <div class="mcp-timeline">
+        <div class="mcp-step"><i class="fa fa-crosshairs"></i> Target Profiling</div>
+        <span class="mcp-arrow">→</span>
+        <div class="mcp-step"><i class="fa fa-chess"></i> Attack Strategy</div>
+        <span class="mcp-arrow">→</span>
+        <div class="mcp-step"><i class="fa fa-bolt"></i> Exploit Executor</div>
+        <span class="mcp-arrow">→</span>
+        <div class="mcp-step"><i class="fa fa-eye"></i> Vulnerability Observer</div>
+        <span class="mcp-arrow">→</span>
+        <div class="mcp-step"><i class="fa fa-file-pdf"></i> Report Engine</div>
+      </div>
+    </div>
+
+    <!-- Risk Summary -->
+    <div class="card">
+      <h3>📊 Risk Summary</h3>
+      <div class="summary-grid" id="summaryGrid">
+        <div class="summary-stat"><div class="val" id="totalRules">-</div><div class="lbl">Rules Tested</div></div>
+        <div class="summary-stat"><div class="val" id="vulnFound" style="color:#da3633">-</div><div class="lbl">Vulnerabilities</div></div>
+        <div class="summary-stat"><div class="val" id="riskScore" style="color:#d29922">-</div><div class="lbl">Risk Score</div></div>
+        <div class="summary-stat"><div class="val" id="riskRating">-</div><div class="lbl">Risk Rating</div></div>
+      </div>
+    </div>
+
+    <!-- Vulnerability Findings -->
+    <div class="card">
+      <h3>🚨 Vulnerability Findings</h3>
+      <div id="findings">
+        <p class="muted">Loading demo results...</p>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="report-cta">
+      <a href="scan.html"><button><i class="fa fa-rocket"></i> Run Real Scan</button></a>
+      <button onclick="loadDemo()"><i class="fa fa-rotate-right"></i> Reload Demo</button>
+    </div>
+
+  </section>
+</main>
+
+<script src="js/config.js"></script>
+<script>
+  const SEVERITY_COLORS = {
+    CRITICAL: '#b91c1c', HIGH: '#c2410c', MEDIUM: '#d97706', LOW: '#15803d'
+  };
+
+  async function loadDemo() {
+    document.getElementById('findings').innerHTML = '<p class="muted">Loading...</p>';
+    try {
+      const res = await fetch(`${API_BASE}/demo/`);
+      const data = await res.json();
+      renderDemo(data);
+    } catch(e) {
+      document.getElementById('findings').innerHTML = `<p class="muted">Could not load demo: ${e.message}</p>`;
+    }
+  }
+
+  function renderDemo(data) {
+    document.getElementById('demoTarget').textContent = data.target || 'N/A';
+    document.getElementById('demoType').textContent = data.target_type || 'LLM';
+
+    // Risk summary
+    const rs = data.risk_summary || {};
+    document.getElementById('totalRules').textContent = rs.total_rules_tested ?? data.results?.length ?? '-';
+    document.getElementById('vulnFound').textContent  = rs.vulnerabilities_found ?? '-';
+    document.getElementById('riskScore').textContent  = rs.overall_risk_score ?? '-';
+    const rating = rs.risk_rating || 'HIGH';
+    document.getElementById('riskRating').innerHTML =
+      `<span class="risk-badge risk-${rating}">${rating}</span>`;
+
+    // Findings
+    const findings = document.getElementById('findings');
+    const results  = data.results || [];
+    if (!results.length) { findings.innerHTML = '<p class="muted">No results.</p>'; return; }
+
+    findings.innerHTML = results.map((r, i) => {
+      const sev    = (r.severity || 'MEDIUM').toUpperCase();
+      const status = r.status || 'UNKNOWN';
+      const badgeCls = status === 'VULNERABLE' ? 'risk-HIGH' :
+                       status === 'SECURE'     ? 'risk-SECURE' : 'risk-MEDIUM';
+
+      const mitigLines = (r.mitigation || '').split('\n').filter(l => l.trim());
+
+      return `
+        <div class="vuln-card">
+          <h4>
+            <span style="color:${SEVERITY_COLORS[sev] || '#888'}">${i+1}. ${r.name || 'Unknown'}</span>
+            <span class="risk-badge ${badgeCls}">${status}</span>
+            <small style="color:#8b949e">OWASP: ${r.owasp || 'N/A'} | Severity: ${sev} | Risk: ${r.risk_score ?? '—'}</small>
+          </h4>
+
+          ${r.attack_payload ? `
+            <div style="margin-bottom:8px">
+              <strong style="color:#58a6ff; font-size:0.82rem">⚔️ Attack Payload</strong>
+              <div class="evidence-box">${esc(r.attack_payload)}</div>
+            </div>` : ''}
+
+          <div style="margin-bottom:8px">
+            <strong style="color:#58a6ff; font-size:0.82rem">🔍 Evidence</strong>
+            <div class="evidence-box">${esc(r.evidence || r.explanation || 'N/A')}</div>
+          </div>
+
+          <div>
+            <strong style="color:#58a6ff; font-size:0.82rem">🛡️ Mitigation</strong>
+            <ul class="mitigation-list">
+              ${mitigLines.length ? mitigLines.map(l => `<li>${esc(l)}</li>`).join('') :
+                `<li>${esc(r.mitigation || 'See OWASP guidelines.')}</li>`}
+            </ul>
+          </div>
+
+          <div style="margin-top:10px; font-size:0.78rem; color:#444">
+            MCP Phase: ${r.mcp_phase || 'Executor → Observer'}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  loadDemo();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Scan - AivulnHunter</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-inner">
+    <h2>🛡️ AivulnHunter</h2>
+    <div class="nav-right">
+      <a href="index.html">Home</a>
+      <a href="agents.html">Agents</a>
+      <a href="scan.html" class="active">Scan</a>
+      <a href="rl.html">RL Heatmap</a>
+      <a href="admin_login.html" class="admin-only">Admin</a>
+    </div>
+  </div>
+</nav>
+
+<main class="app-shell">
+  <section class="dashboard">
+    
+    <div class="page-title">
+      <h1>🔍 Vulnerability Scan</h1>
+      <p>Real-time security testing for AI & LLM systems</p>
+    </div>
+
+    <div class="card scan-card">
+      <div class="form-group">
+        <label>Scan Type</label>
+        <select id="scanType" onchange="toggleScanInput()">
+          <option value="API">🌐 API / LLM Endpoint</option>
+          <option value="DATASET">📁 Dataset Upload</option>
+        </select>
+      </div>
+
+      <div id="urlInput">
+        <div class="form-group">
+          <label>Target URL</label>
+          <input id="scanTarget" placeholder="http://localhost:9000/chat">
+        </div>
+        <div class="example-urls">
+          <span>Examples:</span>
+          <code>http://localhost:9000/chat</code>
+          <code>https://api.example.com/v1/llm</code>
+        </div>
+      </div>
+
+      <div id="datasetInput" style="display:none">
+        <div class="form-group">
+          <label>Upload Dataset</label>
+          <input type="file" id="datasetFile" accept=".json,.csv">
+        </div>
+      </div>
+
+      <button id="scanBtn" class="start-btn" onclick="startUnifiedScan()">
+        <i class="fa-solid fa-rocket"></i> Start Scan
+      </button>
+    </div>
+
+    <div class="card timeline-card">
+      <h3>Agent Execution Timeline</h3>
+      <div class="timeline">
+        <div class="timeline-step" id="agent-profile">
+          <span class="step-icon">🕵️</span>
+          <span class="step-text">Profiling</span>
+          <span class="step-status">WAITING</span>
+        </div>
+        <div class="timeline-step" id="agent-strategy">
+          <span class="step-icon">♟️</span>
+          <span class="step-text">Strategy</span>
+          <span class="step-status">WAITING</span>
+        </div>
+        <div class="timeline-step" id="agent-execute">
+          <span class="step-icon">⚔️</span>
+          <span class="step-text">Execution</span>
+          <span class="step-status">WAITING</span>
+        </div>
+        <div class="timeline-step" id="agent-observer">
+          <span class="step-icon">👁️</span>
+          <span class="step-text">Observer</span>
+          <span class="step-status">WAITING</span>
+        </div>
+      </div>
+      <div class="progress-container">
+        <progress id="scanProgress" value="0" max="100" style="display: none;"></progress>
+        <span id="progressPercent" style="display: none;">0%</span>
+        <p id="agentStatus" class="agent-status"></p>
+      </div>
+    </div>
+
+    <div class="card results-card">
+      <h3>Scan Results</h3>
+      <div id="scanResults">
+        <p class="muted">Choose a scan type above and click "Start Scan".</p>
+      </div>
+    </div>
+
+    <div class="card explain-card" id="explainBox" style="display: none;">
+      <h3>🧠 Explainable AI</h3>
+      <p class="subtitle">Why the vulnerability was detected</p>
+      <div class="explain-item">
+        <span class="tag high" id="vulnSeverity">HIGH</span>
+        <strong id="vulnName">Prompt Injection Detected</strong>
+        <p id="vulnReason">Model followed system override instructions.</p>
+        <details>
+          <summary>View AI reasoning</summary>
+          <pre id="aiReasoning">
+• User input contained system override keywords
+• Model complied with restricted instruction
+• Confidence score: 0.92
+          </pre>
+        </details>
+      </div>
+    </div>
+
+    <div class="report-cta">
+      <button onclick="downloadReport()">📄 Download Security Report</button>
+    </div>
+
+  </section>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/scan.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RL Heatmap - AivulnHunter</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .heatmap-container {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .heatmap-cell {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #334155;
+      transition: all 0.3s ease;
+    }
+    .heatmap-cell:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+    .heatmap-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .heatmap-rule {
+      font-weight: 600;
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+    .heatmap-qscore {
+      font-size: 24px;
+      font-weight: 700;
+      color: #22c55e;
+    }
+    .heatmap-qscore.high {
+      color: #ef4444;
+    }
+    .heatmap-qscore.medium {
+      color: #f59e0b;
+    }
+    .heatmap-bar {
+      height: 8px;
+      background: #334155;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .heatmap-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .heatmap-bar-fill.high {
+      background: linear-gradient(90deg, #ef4444, #dc2626);
+    }
+    .heatmap-bar-fill.medium {
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+    }
+    .heatmap-bar-fill.low {
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+    }
+    .heatmap-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .heatmap-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid #334155;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #22c55e;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #94a3b8;
+    }
+    .error {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <h2>🛡️ AivulnHunter</h2>
+      <div class="nav-right">
+        <a href="index.html">Home</a>
+        <a href="scan.html">Scan</a>
+        <a href="agents.html">Agents</a>
+        <a href="rl.html" class="active">RL Heatmap</a>
+        <a href="admin_login.html">Admin</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-shell">
+    <div class="heatmap-container">
+      <div class="page-title">
+        <h1>📊 Reinforcement Learning Heatmap</h1>
+        <p>Real-time Q-scores for vulnerability rule prioritization based on scan results</p>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="totalRules">-</div>
+          <div class="stat-label">Active Rules</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avgScore">-</div>
+          <div class="stat-label">Avg Q-Score</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="highRisk">-</div>
+          <div class="stat-label">High Risk</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="mediumRisk">-</div>
+          <div class="stat-label">Medium Risk</div>
+        </div>
+      </div>
+
+      <div id="heatmapGrid" class="heatmap-grid">
+        <div class="loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          Loading RL scores...
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    // Check auth
+    function checkAuth() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Please login first!");
+        window.location.href = "admin_login.html";
+        return null;
+      }
+      return token;
+    }
+
+    async function loadHeatmap() {
+      const token = checkAuth();
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/rl/stats`, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to load RL stats");
+        }
+
+        const data = await res.json();
+        renderHeatmap(data);
+        updateStats(data);
+      } catch (err) {
+        console.error("Error loading heatmap:", err);
+        document.getElementById("heatmapGrid").innerHTML = `
+          <div class="error">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            Failed to load RL heatmap: ${err.message}
+            <br><small>Make sure you're logged in as admin</small>
+          </div>
+        `;
+      }
+    }
+
+    function renderHeatmap(data) {
+      const grid = document.getElementById("heatmapGrid");
+      const rules = data.scores || [];
+
+      if (rules.length === 0) {
+        grid.innerHTML = `
+          <div class="loading">
+            <i class="fa-solid fa-info-circle"></i>
+            No RL data available yet. Run some scans to generate scores!
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = rules.map(rule => {
+        const qScore = rule.q_score || 0.5;
+        const severityClass = qScore > 0.7 ? "high" : qScore > 0.4 ? "medium" : "low";
+        const barWidth = Math.min(qScore * 100, 100);
+
+        return `
+          <div class="heatmap-cell">
+            <div class="heatmap-header">
+              <span class="heatmap-rule">${rule.rule}</span>
+              <span class="heatmap-qscore ${severityClass}">${qScore.toFixed(2)}</span>
+            </div>
+            <div class="heatmap-bar">
+              <div class="heatmap-bar-fill ${severityClass}" style="width: ${barWidth}%"></div>
+            </div>
+            <div class="heatmap-meta">
+              <span><i class="fa-solid fa-tag"></i> ${rule.owasp || "N/A"}</span>
+              <span><i class="fa-solid fa-shield"></i> ${rule.severity || "MEDIUM"}</span>
+              <span><i class="fa-solid fa-flag"></i> Priority: ${rule.priority || 3}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function updateStats(data) {
+      document.getElementById("totalRules").textContent = data.total_rules || 0;
+      document.getElementById("avgScore").textContent = (data.avg_q_score || 0).toFixed(2);
+      document.getElementById("highRisk").textContent = data.high_risk || 0;
+      document.getElementById("mediumRisk").textContent = data.medium_risk || 0;
+    }
+
+    // Initialize
+    window.addEventListener("load", loadHeatmap);
+  </script>
+</body>
+</html>

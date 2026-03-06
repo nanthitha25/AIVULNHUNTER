@@ -1,0 +1,8 @@
+{
+  "SQL Injection": 0.8,
+  "Prompt Injection": 0.9,
+  "Over-Privilege": 0.7,
+  "Prompt Override Test": 1.0,
+  "SQL Injection Test": 0.55,
+  "LLM01: Prompt Injection": 0.9065000000000001
+}

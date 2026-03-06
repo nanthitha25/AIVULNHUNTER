@@ -1,0 +1,15 @@
+{
+  "llm_001": {
+    "id": "llm_001",
+    "type": "llm",
+    "name": "Customer Support Chatbot",
+    "known_risks": ["Prompt Injection", "Data Leakage"]
+  },
+  "api_001": {
+    "id": "api_001",
+    "type": "api",
+    "name": "User API",
+    "known_risks": ["Injection", "Broken Authentication"]
+  }
+}
+
