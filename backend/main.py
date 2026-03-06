@@ -4,21 +4,15 @@ AIVulnHunter - FastAPI Application Entry Point
 Architecture:
     Frontend → API Backend → Scan Pipeline → Rule Engine → Report Generator
 
-Registered Routers:
-    /auth          - Authentication & JWT token issuance
-    /scan          - Vulnerability scanning (free-tier limit enforced)
-    /rules         - Security rule management (admin only)
-    /admin         - Admin dashboard: RL Map, scan logs, user management
-    /demo          - Demo mode: pre-populated scan example
-    /report        - PDF report download
-    /rl            - RL heatmap (existing)
-    /rl-stats      - RL stats (existing)
-    /scan-ws       - WebSocket scan progress (existing)
+NOTE: Static file serving has been removed from this file.
+      Open frontend HTML files directly from the filesystem, e.g.
+        file:///C:/Users/nanth/Downloads/.../frontend/index.html
+      or serve them from a separate static server (e.g. VS Code Live Server).
+      The API allows cross-origin requests from all origins (CORS enabled).
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import sys
 
@@ -39,6 +33,7 @@ from backend.routes.rules     import router as rules_router
 # New routers
 from backend.routes.admin     import router as admin_router
 from backend.routes.demo      import router as demo_router
+from backend.routes.assistant import router as assistant_router
 
 # Initialize database on startup
 from backend.database.sqlite_db import init_db
@@ -53,6 +48,7 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# Allow all origins so the frontend (opened as a local file or on any port) can call the API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -61,7 +57,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Register all routers ─────────────────────────────────────────── #
+# ── API Routers only — no static file mounts ─────────────────────── #
 app.include_router(auth_router)
 app.include_router(scan_router)
 app.include_router(scan_ws_router)
@@ -71,11 +67,8 @@ app.include_router(demo_router)
 app.include_router(rl_router)
 app.include_router(rl_stats_router)
 app.include_router(report_router)
+app.include_router(assistant_router)
 
-# ── Mount frontend static files ───────────────────────────────────── #
-frontend_path = Path(__file__).resolve().parent.parent / "frontend"
-if frontend_path.exists():
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 @app.get("/health")
 def health_check():
@@ -86,6 +79,16 @@ def health_check():
         "version": "2.0.0",
         "docs": "/docs",
     }
+
+
+@app.get("/")
+def root():
+    return {
+        "message": "AIVulnHunter API is running.",
+        "docs": "http://localhost:8000/docs",
+        "frontend": "Open frontend/index.html directly in your browser",
+    }
+
 
 if __name__ == "__main__":
     import uvicorn
