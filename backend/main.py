@@ -79,16 +79,8 @@ def root():
         "frontend": "Open frontend/index.html or use Next.js dashboard",
     }
 
-# Mount frontend static files if they exist
-frontend_path = Path(__file__).resolve().parent.parent / "frontend"
-if frontend_path.exists():
-    try:
-        app.mount("/legacy", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
-        logger.info(f"Mounted legacy frontend at /legacy from {frontend_path}")
-    except Exception as e:
-        logger.error(f"Error mounting frontend: {e}")
-else:
-    logger.info("Legacy frontend directory not found, skipping static mount.")
+# Legacy frontend mounting removed during cleanup.
+# The project now exclusively uses the Next.js frontend in frontend-next/
 
 if __name__ == "__main__":
     import uvicorn
