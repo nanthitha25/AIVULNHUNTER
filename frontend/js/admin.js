@@ -3,7 +3,7 @@
  * NO DOMContentLoaded - called after admin.html is loaded
  */
 
-const API_BASE = "http://127.0.0.1:8000";
+// Note: config.js should be loaded before this script to set window.API_BASE
 
 /**
  * Initialize admin UI - called after admin.html content loads
@@ -30,7 +30,7 @@ async function loadRules() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/rules/`, {
+    const res = await fetch(`${window.API_BASE}/rules/`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -80,7 +80,7 @@ async function handleRuleSubmit(e) {
   };
 
   try {
-    const res = await fetch(`${API_BASE}/rules/`, {
+    const res = await fetch(`${window.API_BASE}/rules/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -111,7 +111,7 @@ async function deleteRule(id) {
   const token = localStorage.getItem("token");
 
   try {
-    const res = await fetch(`${API_BASE}/rules/${id}`, {
+    const res = await fetch(`${window.API_BASE}/rules/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` }
     });

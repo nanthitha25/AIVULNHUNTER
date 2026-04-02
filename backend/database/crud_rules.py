@@ -110,16 +110,16 @@ def get_rl_weight(db: Session, rule_id: int) -> Optional[RLWeight]:
 def update_rl_weight(
     db: Session,
     rule_id: int,
-    success: bool,
+    reward: float,
     learning_rate: float = 0.1
 ) -> Optional[RLWeight]:
     """
-    Update RL weight based on scan result
+    Update RL weight based on scan result reward
     
     Args:
         db: Database session
         rule_id: Rule ID
-        success: Whether the rule found a vulnerability
+        reward: Reward from ObserverAgent (e.g., 2.0, 1.0, -0.1)
         learning_rate: Learning rate for weight update
     
     Returns:
@@ -134,18 +134,20 @@ def update_rl_weight(
     
     # Update counts
     rl_weight.total_scans += 1
-    if success:
+    if reward > 0:
         rl_weight.success_count += 1
     else:
         rl_weight.failure_count += 1
     
-    # Update priority score using simple RL
-    reward = 2 if success else 0
+    # Update priority score using the reward
     rl_weight.priority_score = rl_weight.priority_score + learning_rate * reward
     
-    # Normalize to [0, 1]
-    rl_weight.priority_score = max(0.0, min(1.0, rl_weight.priority_score))
-    
+    # Keep priority score in a reasonable range [0, 10]
+    if rl_weight.priority_score < 0:
+        rl_weight.priority_score = 0
+    elif rl_weight.priority_score > 10:
+        rl_weight.priority_score = 10
+        
     db.commit()
     db.refresh(rl_weight)
     return rl_weight

@@ -1257,11 +1257,22 @@ input::placeholder {
   font-size: 14px;
 }
 
+.agent-step.waiting {
+  opacity: 0.35;
+  background: rgba(255,255,255,0.05);
+}
+
 .agent-step.active {
   opacity: 1;
   transform: translateY(-4px);
   box-shadow: 0 0 18px rgba(0,255,150,0.25);
   background: rgba(34,197,94,0.1);
+}
+
+.agent-step.done {
+  opacity: 0.6;
+  background: rgba(34,197,94,0.15);
+  box-shadow: 0 0 8px rgba(34,197,94,0.2);
 }
 
 .demo-output {

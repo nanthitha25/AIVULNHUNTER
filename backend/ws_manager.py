@@ -77,9 +77,21 @@ class ConnectionManager:
             details: Optional additional details about the progress
         """
         await self.send(scan_id, {
+            "type": "progress",
+            "scan_id": scan_id,
             "agent": agent,
             "progress": progress,
             "details": details
+        })
+        
+        if progress == 100:
+            await self.send_complete(scan_id)
+            
+    async def send_complete(self, scan_id: str) -> None:
+        """Send a completion notification."""
+        await self.send(scan_id, {
+            "type": "complete",
+            "scan_id": scan_id
         })
     
     async def send_agent_start(self, scan_id: str, agent: str) -> None:
@@ -93,9 +105,12 @@ class ConnectionManager:
     async def send_error(self, scan_id: str, error: str) -> None:
         """Send an error message for a scan."""
         await self.send(scan_id, {
+            "type": "error",
+            "scan_id": scan_id,
             "agent": "Error",
             "progress": -1,
-            "error": error
+            "error": error,
+            "message": error
         })
 
 

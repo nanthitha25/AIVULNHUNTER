@@ -1,0 +1,243 @@
+= AivulnHunter: AI-Powered Vulnerability Scanner
+:toc: left
+:toclevels: 4
+:sectnums:
+:sectanchors:
+:source-highlighter: highlight.js
+:icons: font
+:experimental:
+:description: Advanced security scanning platform for LLM and API infrastructure.
+
+== 🚀 Introduction
+
+**AivulnHunter** is a state-of-the-art security testing platform designed to address the unique challenges of modern **LLM (Large Language Model) Applications** and **API-First Architectures**. 
+
+Built on an **agentic framework**, AivulnHunter doesn't just run static checks; it intelligently profiles targets, dynamically generates attack strategies, and uses **Reinforcement Learning (RL)** to adapt its behavior over time, ensuring that the most critical vulnerabilities are found first.
+
+== 🏗️ System Architecture
+
+AivulnHunter follows a multi-layered distributed architecture optimized for scalability, resilience, and real-time feedback.
+
+=== High-Level Overview
+
+[mermaid]
+....
+graph TB
+    subgraph Client_Layer
+        NextJS[Next.js Frontend]
+        LegacyUI[Legacy HTML Dashboard]
+    end
+    
+    subgraph API_Gateway
+        FastAPI[FastAPI Gateway]
+        WS[WebSocket Manager]
+        Auth[JWT Auth Guard]
+    end
+    
+    subgraph Core_Engine
+        Pipeline[Scan Pipeline Orchestrator]
+        Agents[Agentic Framework]
+        RL[RL Engine]
+    end
+    
+    subgraph Persistence_Layer
+        PostgreSQL[(PostgreSQL 15)]
+        Volumes[Docker Persistent Volumes]
+    end
+    
+    subgraph External_Targets
+        Targets[Target APIs/LLMs]
+        Mock[Mock Targets Container]
+    end
+    
+    NextJS <--> FastAPI
+    FastAPI <--> Pipeline
+    Pipeline <--> Agents
+    Agents <--> Targets
+    Pipeline <--> RL
+    API_Gateway --> Auth
+    Pipeline --> PostgreSQL
+....
+
+=== Core Layers
+
+[cols="1,3"]
+|===
+| Layer | Responsibilities
+
+| **Frontend Layer**
+| Provides a real-time dashboard for scan management, rule configuration, and RL visualization (heatmap).
+
+| **API Layer**
+| Handles RESTful requests, manages JWT-based security, and broadcasts real-time scan progress via WebSockets.
+
+| **Agent Framework**
+| Specialized autonomous agents that handle profiling, strategy, execution, and result observation.
+
+| **Data Layer**
+| PostgreSQL-backed persistence for rules, scan history, user accounts, and RL weights.
+|===
+
+== 🤖 The Agentic Framework
+
+The heart of AivulnHunter is its quartet of specialized AI agents.
+
+=== 1. Target Profiling Agent (`ProfilingAgent`)
+* **Mission**: Understand the nature of the target.
+* **Logic**: Performs non-destructive probes to detect if the target is an LLM Chat interface, a REST API, or a standard Web Application.
+* **Output**: A JSON profile including reachability, header analysis, and estimated risk level.
+
+=== 2. Attack Strategy Agent (`StrategyAgent`)
+* **Mission**: Build the most efficient attack path.
+* **Logic**: Filters global rules based on the target profile and sorts them using current **RL priority weights**.
+* **Benefit**: Ensures that high-probability vulnerabilities are tested before lower-priority ones.
+
+=== 3. Executor Agent (`ExecutionAgent`)
+* **Mission**: Execute technical vulnerability tests.
+* **Portfolio**: Manages a registry of specialized scanner plugins (Prompt Injection, BOLA, Mass Assignment, etc.).
+* **Safety**: Includes built-in timeouts and error handling to ensure scanning doesn't impact target stability.
+
+=== 4. Observer Agent (`ObservationAgent`)
+* **Mission**: Interpret raw results into actionable intelligence.
+* **Logic**: Analyzes response codes, payload reflections, and timing data.
+* **Deliverable**: Human-readable explanations, OWASP mappings, and specific mitigation advice.
+
+== 🧠 Reinforcement Learning Engine
+
+AivulnHunter uses a **Linear Reward Model** to optimize its scanning efficiency over time.
+
+=== Reward Mechanism
+When a scan completes, the results are fed back into the RL Engine:
+* **Critical/High Finding**: `+2.0` Reward
+* **Medium/Low Finding**: `+1.0` Reward
+* **No Finding**: `0.0` or `-0.1` Penalty (depending on configuration)
+
+=== Priority Calculation
+[source,python]
+----
+new_weight = current_weight + (learning_rate * reward)
+priority_score = sigmoid(new_weight)
+----
+These scores are persisted in the database, meaning the system "remembers" which vulnerabilities are common in your environment and checks for them faster in future scans.
+
+== 🛡️ Vulnerability Coverage
+
+AivulnHunter covers the full spectrum of modern application risks.
+
+=== OWASP Top 10 for LLMs
+* **LLM01**: Prompt Injection
+* **LLM02**: Insecure Output Handling
+* **LLM06**: Sensitive Information Disclosure
+* **LLM08**: Excessive Agency
+* **LLM10**: Model Theft
+
+=== API Security
+* **BOLA (Broken Object Level Authorization)**
+* **Mass Assignment**
+* **Parameter Tampering**
+* **Advanced Rate Limiting**
+
+== 🧪 Practical Testing Workflow
+
+AivulnHunter's multi-agent system is designed for autonomous detection across multiple target types.
+
+=== 🔐 Phase 0: Authentication
+Before scanning, obtain a JWT token.
+
+* **UI**: Login at `http://localhost:3000/login` (admin/admin123).
+* **API**:
+[source,bash]
+----
+curl -X POST http://localhost:8000/api/v1/auth/demo-login
+----
+
+=== 🔎 Scenario 1: Scanning a REST API
+* **Target Example**: `http://mock_targets:8081/api/v1/users/1`
+* **Tests Performed**: BOLA, Mass Assignment, Parameter Tampering, Fuzzing, Rate Limiting.
+* **Execution**:
+[source,bash]
+----
+curl -X POST "http://localhost:8000/api/v1/scans/" \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"http://mock_targets:8081/api/v1/users/1","scan_type":"full"}'
+----
+
+=== 🤖 Scenario 2: Scanning an LLM Endpoint
+* **Target Example**: `http://localhost:8080/v1/chat/completions`
+* **Tests Performed**: Prompt Injection, System Prompt Extraction, Jailbreaking, DoS, Overreliance.
+
+=== 🧠 Scenario 3: Scanning an AI Agent
+* **Target Example**: `http://mock_targets:8081/agent/execute`
+* **Tests Performed**: Tool Argument Injection, Autonomous Escalation, Memory Poisoning, Tool Chaining Exfiltration.
+
+== 📊 Monitoring and Reporting
+During execution, you can monitor progress via the **Dashboard** or by polling the status endpoint.
+
+* **Real-time Stages**: `TargetProfiling` (10%) → `Strategy` (30%) → `Executor` (50%) → `Observer` (100%).
+* **Reports**: Once completed, generate a PDF report via the UI or `/api/v1/report/generate`.
+
+== 🔁 Reinforcement Learning Verification
+After vulnerabilities are detected, verify that the RL engine has learned to prioritize those rules:
+[source,sql]
+----
+psql -d aivulnhunter
+SELECT rule_id, priority_score FROM rl_weights ORDER BY priority_score DESC;
+----
+Rules with valid findings will show an increased `priority_score`.
+
+== 🚧 Deployment & Containerization
+
+The platform is designed for a "one-click" deployment using Docker and Docker Compose.
+
+=== Service Definition
+The `docker-compose.yml` file orchestrates four primary services:
+
+1. **`db`**: PostgreSQL 15 with persistent data volumes.
+2. **`backend`**: FastAPI application handling the core engine.
+3. **`frontend`**: Next.js production server for the modern UI.
+4. **`mock_targets`**: An isolated environment for safe verification of detection logic.
+
+=== Production Setup
+[source,bash]
+----
+# Ensure Docker is running
+docker-compose up -d --build
+
+# Run migrations to initialize rules and admin user
+docker exec aivulnhunter-backend-1 python backend/database/migrate.py
+----
+
+== 📝 API Documentation
+
+The API follows OpenAPI standards.
+* **Docs URL**: `http://localhost:8000/docs`
+* **Real-time Stream**: `ws://localhost:8000/api/v1/scans/ws/{client_id}`
+
+=== Key Endpoints
+* `POST /api/v1/auth/demo-login`: Get a JWT token.
+* `POST /api/v1/scans/`: Start a new asynchronous scan.
+* `GET /api/v1/rl/stats`: Retrieve the current priority heatmap.
+
+== 🛠️ Development & Testing
+
+=== Manual Verification
+A `test_docker.py` script is provided to validate the entire pipeline from within the container environment.
+
+=== Adding New Rules
+1. Implement a new scanner in `backend/agents/plugins/`.
+2. Register the scanner in `backend/agents/registry.py`.
+3. Add the rule metadata (Name, OWASP category, Severity) to the database via `migrate.py` or the Admin UI.
+
+== ⚖️ Security and Ethics
+
+[CAUTION]
+====
+AivulnHunter is a powerful tool. It should **never** be used against third-party systems without explicit written consent. The system includes rate-limiting and non-destructive payloads by default, but users are responsible for their own actions.
+====
+
+== 📜 License
+Apache License 2.0 - See `LICENSE` for details.
+
+---
+_Generated by AivulnHunter Documentation Engine_

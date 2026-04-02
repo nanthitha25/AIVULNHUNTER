@@ -142,7 +142,7 @@ export default function ScansPage() {
                                         </tr>
                                     ) : (
                                         scans.map((scan) => (
-                                            <tr key={scan.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                            <tr key={scan.scan_id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                                                         {scan.target}
@@ -157,8 +157,8 @@ export default function ScansPage() {
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex items-center gap-2">
                                                         <span className={`text-lg font-bold ${scan.vulnerabilities_found > 0
-                                                                ? 'text-red-600 dark:text-red-400'
-                                                                : 'text-green-600 dark:text-green-400'
+                                                            ? 'text-red-600 dark:text-red-400'
+                                                            : 'text-green-600 dark:text-green-400'
                                                             }`}>
                                                             {scan.vulnerabilities_found}
                                                         </span>
@@ -175,7 +175,7 @@ export default function ScansPage() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                                     <Link
-                                                        href={`/scans/${scan.id}`}
+                                                        href={`/scans/${scan.scan_id}`}
                                                         className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                                                     >
                                                         View Details →

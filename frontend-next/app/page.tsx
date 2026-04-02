@@ -25,17 +25,20 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [currentScan, setCurrentScan] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
+    setIsAuthenticated(!!localStorage.getItem('auth_token'));
     loadDashboardData();
 
     // Subscribe to WebSocket updates
-    wsManager.subscribeToErrors((error) => {
+    const handleError = (error: string) => {
       console.error('WebSocket error:', error);
-    });
+    };
+    wsManager.subscribeToErrors(handleError);
 
     return () => {
-      wsManager.disconnect();
+      wsManager.unsubscribeFromErrors(handleError);
     };
   }, []);
 
@@ -59,6 +62,30 @@ export default function DashboardPage() {
       console.error('Failed to load dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    try {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_BASE}/api/v1/auth/demo-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        throw new Error('Demo login failed');
+      }
+
+      const data = await res.json();
+      localStorage.setItem('auth_token', data.access_token);
+      localStorage.setItem('auth_role', data.role);
+      localStorage.setItem('is_demo', 'true'); // Flag to show banner
+
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err.message);
+      alert('Failed to enter Demo Mode');
     }
   };
 
@@ -112,12 +139,22 @@ export default function DashboardPage() {
               Real-time vulnerability scanning powered by PostgreSQL
             </p>
           </div>
-          <button
-            onClick={startNewScan}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-          >
-            🚀 Start New Scan
-          </button>
+          <div className="flex gap-4">
+            {isAuthenticated === false && (
+              <button
+                onClick={handleDemoLogin}
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                🎮 Try Demo
+              </button>
+            )}
+            <button
+              onClick={startNewScan}
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              🚀 Start New Scan
+            </button>
+          </div>
         </div>
 
         {/* Real-time Progress */}
@@ -213,8 +250,8 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {recentScans.map((scan) => (
                 <Link
-                  key={scan.id}
-                  href={`/scans/${scan.id}`}
+                  key={scan.scan_id}
+                  href={`/scans/${scan.scan_id}`}
                   className="block bg-white/5 hover:bg-white/10 rounded-lg p-4 transition-all border border-white/10 hover:border-white/20"
                 >
                   <div className="flex justify-between items-start">
@@ -233,9 +270,9 @@ export default function DashboardPage() {
                         <div className="text-xs text-gray-400">vulnerabilities</div>
                       </div>
                       <div className={`px-3 py-1 rounded-full text-xs font-medium ${scan.status === 'completed' ? 'bg-green-500/20 text-green-300' :
-                          scan.status === 'running' ? 'bg-blue-500/20 text-blue-300' :
-                            scan.status === 'failed' ? 'bg-red-500/20 text-red-300' :
-                              'bg-yellow-500/20 text-yellow-300'
+                        scan.status === 'running' ? 'bg-blue-500/20 text-blue-300' :
+                          scan.status === 'failed' ? 'bg-red-500/20 text-red-300' :
+                            'bg-yellow-500/20 text-yellow-300'
                         }`}>
                         {scan.status}
                       </div>

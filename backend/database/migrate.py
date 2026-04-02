@@ -57,7 +57,7 @@ def migrate_rules_from_json(db: Session, json_path: str = None):
                 description=rule_data.get('description', ''),
                 enabled=rule_data.get('enabled', True),
                 target_types=rule_data.get('target_types', ['LLM_API', 'WEB_APP']),
-                metadata=rule_data.get('metadata', {})
+                meta_data=rule_data.get('metadata', {})
             )
             
             db.add(rule)

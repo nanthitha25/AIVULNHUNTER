@@ -5,7 +5,7 @@ Provides helper functions for scan-related database operations
 
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 from backend.database.models import Scan, Vulnerability, ScanLog
@@ -73,8 +73,17 @@ def get_scans(
     
     if status:
         query = query.filter(Scan.status == status)
-    
     return query.order_by(Scan.started_at.desc()).limit(limit).offset(offset).all()
+
+
+def count_scans_by_user(
+    db: Session,
+    user_id: uuid.UUID
+) -> int:
+    """
+    Count total scans for a given user.
+    """
+    return db.query(Scan).filter(Scan.user_id == user_id).count()
 
 
 def update_scan_status(
@@ -104,13 +113,17 @@ def complete_scan(
     scan = get_scan(db, scan_id)
     if scan:
         scan.status = "completed"
-        scan.completed_at = datetime.utcnow()
+        scan.completed_at = datetime.now(timezone.utc)
         scan.vulnerabilities_found = vulnerabilities_found
         scan.total_rules_tested = total_rules_tested
         
         # Calculate duration
         if scan.started_at:
-            duration = (scan.completed_at - scan.started_at).total_seconds()
+            started = scan.started_at.replace(tzinfo=timezone.utc) if getattr(scan.started_at, 'tzinfo', None) is None else scan.started_at
+            completed = scan.completed_at
+            if getattr(completed, 'tzinfo', None) is None:
+                completed = completed.replace(tzinfo=timezone.utc)
+            duration = (completed - started).total_seconds()
             scan.duration_seconds = int(duration)
         
         db.commit()

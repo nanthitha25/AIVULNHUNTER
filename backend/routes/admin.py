@@ -69,21 +69,23 @@ def create_user(
     db: Session = Depends(get_db),
     admin=Depends(admin_required)
 ):
-    """Create a new user."""
     import uuid
-    from passlib.context import CryptContext
+    import bcrypt
 
     # Check username uniqueness
     existing = db.query(User).filter(User.username == payload.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    password_bytes = payload.password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+
     user = User(
         id=uuid.uuid4(),
         username=payload.username,
         email=payload.email,
-        password_hash=pwd_context.hash(payload.password),
+        hashed_password=hashed_password,
         role=payload.role,
         is_active=True,
     )

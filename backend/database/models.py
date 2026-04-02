@@ -5,9 +5,9 @@ Maps Python classes to PostgreSQL tables
 
 from sqlalchemy import (
     Column, String, Integer, Float, Boolean, Text, 
-    ForeignKey, TIMESTAMP, ARRAY, CheckConstraint
+    ForeignKey, TIMESTAMP, JSON, CheckConstraint
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -69,8 +69,8 @@ class Rule(Base):
     priority = Column(Integer, default=1)
     description = Column(Text)
     enabled = Column(Boolean, default=True)
-    target_types = Column(ARRAY(Text))  # ['LLM_API', 'WEB_APP', 'GENERIC_API']
-    metadata = Column(JSONB, default={})
+    target_types = Column(JSON)  # ['LLM_API', 'WEB_APP', 'GENERIC_API']
+    meta_data = Column(JSON, default={})
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -118,13 +118,13 @@ class Scan(Base):
     target = Column(String(500), nullable=False)
     scan_type = Column(String(50), default='full')
     status = Column(String(50), default='pending')
-    profile = Column(JSONB, default={})
+    profile = Column(JSON, default={})
     started_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     completed_at = Column(TIMESTAMP(timezone=True))
     duration_seconds = Column(Integer)
     total_rules_tested = Column(Integer, default=0)
     vulnerabilities_found = Column(Integer, default=0)
-    metadata = Column(JSONB, default={})
+    meta_data = Column(JSON, default={})
     
     # Relationships
     user = relationship("User", back_populates="scans")
@@ -159,7 +159,7 @@ class Vulnerability(Base):
     evidence = Column(Text)
     error_message = Column(Text)
     detected_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-    metadata = Column(JSONB, default={})
+    meta_data = Column(JSON, default={})
     
     # Relationships
     scan = relationship("Scan", back_populates="vulnerabilities")
@@ -186,7 +186,7 @@ class AgentRegistry(Base):
     type = Column(String(100), nullable=False)  # 'scanner', 'analyzer', 'reporter'
     description = Column(Text)
     enabled = Column(Boolean, default=True)
-    config = Column(JSONB, default={})
+    config = Column(JSON, default={})
     health_status = Column(String(50), default='unknown')
     last_health_check = Column(TIMESTAMP(timezone=True))
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
@@ -212,7 +212,7 @@ class ScanLog(Base):
     agent_name = Column(String(255))
     log_level = Column(String(50), default='INFO')
     message = Column(Text, nullable=False)
-    details = Column(JSONB, default={})
+    details = Column(JSON, default={})
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     
     # Relationships

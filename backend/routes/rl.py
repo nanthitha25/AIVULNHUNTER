@@ -10,9 +10,10 @@ from typing import List, Dict
 import random
 
 from backend.dependencies.auth_guard import get_current_user
-from backend.services.rl_engine import get_rule_weights
+from backend.dependencies.admin_guard import admin_required
+# from backend.services.rl_engine import get_rule_weights # ensuring this exists or mock it
 
-router = APIRouter(prefix="/rl", tags=["Reinforcement Learning"])
+router = APIRouter(prefix="/rl", tags=["Reinforcement Learning"], dependencies=[Depends(admin_required)])
 
 
 def get_rule_weights() -> List[Dict]:
@@ -121,4 +122,3 @@ def get_priority_order(user=Depends(get_current_user)):
         "based_on": "RL-optimized priority weights",
         "description": "Rules ordered by detected effectiveness and attack prevalence"
     }
-

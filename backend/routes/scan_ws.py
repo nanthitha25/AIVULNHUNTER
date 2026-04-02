@@ -50,12 +50,15 @@ async def scan_ws(
         # Keep connection alive and handle incoming messages
         while True:
             try:
+                print(f"[WS] Waiting for message from {scan_id}...")
                 # Wait for any client messages (keepalive, etc.)
                 data = await websocket.receive_text()
                 print(f"[WS] Received from {scan_id}: {data}")
                 
                 # Echo back to confirm connection is alive
+                print(f"[WS] Sending status connected to {scan_id}...")
                 await manager.send(scan_id, {"status": "connected"})
+                print(f"[WS] Status sent to {scan_id} successfully.")
                 
             except WebSocketDisconnect:
                 print(f"[WS] Client disconnected from scan {scan_id}")
@@ -84,8 +87,9 @@ async def scan_ws_authenticated(
     """
     # Validate token (simplified - in production use proper JWT validation)
     from jose import jwt, JWTError
+    import os
     
-    SECRET_KEY = "super-secret-key"
+    SECRET_KEY = os.getenv("SECRET_KEY", "supersecureaivulnhunterkey123")
     ALGORITHM = "HS256"
     
     try:

@@ -1,148 +1,119 @@
-"""
-Scan routes for AivulnHunter API
-Handles scan creation, status checking, and results retrieval
-Now using PostgreSQL-backed pipeline by default
-"""
-
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+from typing import List, Optional
 import uuid
+import asyncio
 
-# Use database-backed pipeline as default
-from backend.services.scan_pipeline_db import run_scan_pipeline, get_scan_result
-from backend.database.connection import get_db
+from backend.database.connection import get_db, SessionLocal
 from backend.database import crud_scans
+from backend.schemas import ScanBase, ScanCreate, ScanResult
+from backend.services.pipeline_service import pipeline_service
+
+router = APIRouter()
+
+async def run_scan_background(scan_id: uuid.UUID):
+    """Background task wrapper for the pipeline."""
+    db = SessionLocal()
+    try:
+        await pipeline_service.run_scan(db, scan_id=scan_id)
+    except Exception as e:
+        print(f"Background scan failed: {e}")
+    finally:
+        db.close()
+
 from backend.dependencies.auth_guard import get_current_user
-from backend.services.pdf_report import generate_pdf_report
 
-router = APIRouter(prefix="/scan", tags=["Scan"])
-
-FREE_SCAN_LIMIT = 3
-
-
-# ------------------------------------------------------------------ #
-# Request / Response models                                            #
-# ------------------------------------------------------------------ #
-
-class ScanInput(BaseModel):
-    target: str
-    scan_type: Optional[str] = "full"
-
-
-# ------------------------------------------------------------------ #
-# Routes                                                               #
-# ------------------------------------------------------------------ #
-
-@router.post("/")
-async def start_scan(payload: ScanInput, user: dict = Depends(get_current_user)):
-    """
-    Start a vulnerability scan on the target.
-
-    Scan limits:
-        - Free users (role='user'): maximum 3 scans total
-        - Admins: unlimited scans
-
-    Returns:
-        scan_id for tracking results via GET /scan/{scan_id}
-    """
-    # Get user_id if user is authenticated
-    user_id = None
-    if user and hasattr(user, 'id'):
-        user_id = user.id
-    elif isinstance(user, dict):
-        user_id = user.get("sub") or user.get("id")
-    
-    # Run the database-backed pipeline
-    result = run_scan_pipeline(payload.target, user_id=user_id)
-    
-    return {
-        "scan_id": result.get("scan_id"),
-        "target": result["target"],
-        "status": result["status"],
-        "results_url": result.get("results_url", f"/scan/{result.get('scan_id')}")
-    }
-
-@router.get("/history")
-def get_scan_history(
-    limit: int = 20,
-    offset: int = 0,
-    status: Optional[str] = None,
+@router.post("/", response_model=ScanResult)
+async def start_scan(
+    scan_request: ScanCreate, 
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    user=Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
-    Get scan history with pagination.
-    
-    Args:
-        limit: Maximum number of scans to return (default: 20)
-        offset: Offset for pagination (default: 0)
-        status: Filter by status (optional)
-        db: Database session
-        user: Authenticated user
-        
-    Returns:
-        List of scans with metadata
+    Start a new vulnerability scan.
+    Creates DB record immediately and runs pipeline in background.
     """
-    # Get user_id if available
-    user_id = None
-    if user and hasattr(user, 'id'):
-        user_id = user.id
-    elif isinstance(user, dict):
-        user_id = user.get("sub") or user.get("id")
+    username = current_user.get("username")
+    role = current_user.get("role")
+
+    # Look up user in DB to bind the scan
+    from backend.database.models import User
+    user_record = db.query(User).filter(User.username == username).first()
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    user_id = user_record.id
     
-    # Fetch scans from database
-    scans = crud_scans.get_scans(
-        db=db,
-        user_id=user_id,
-        status=status,
-        limit=limit,
-        offset=offset
-    )
+    # Removed Demo limitations
+
+    # 1. Create a pending scan record immediately
+    scan_db = crud_scans.create_scan(db, target=scan_request.target, user_id=user_id, scan_type=scan_request.scan_type)
     
-    # Format response
+    # 2. Launch the pipeline in the background
+    background_tasks.add_task(run_scan_background, scan_db.id)
+    
     return {
-        "scans": [
-            {
-                "id": str(scan.id),
-                "target": scan.target,
-                "status": scan.status,
-                "scan_type": scan.scan_type,
-                "started_at": scan.started_at.isoformat() if scan.started_at else None,
-                "completed_at": scan.completed_at.isoformat() if scan.completed_at else None,
-                "duration_seconds": scan.duration_seconds,
-                "vulnerabilities_found": scan.vulnerabilities_found,
-                "total_rules_tested": scan.total_rules_tested
-            }
-            for scan in scans
-        ],
-        "limit": limit,
-        "offset": offset,
-        "count": len(scans)
+        "scan_id": str(scan_db.id),
+        "status": "pending",
+        "target": scan_request.target,
+        "results_url": f"/api/v1/scans/{scan_db.id}",
+        "results": []
     }
 
-@router.get("/{scan_id}")
-def get_scan_result_by_id(scan_id: str, user=Depends(get_current_user)):
-    """Get a previously run scan result by ID from database."""
-    result = get_scan_result(scan_id)
-    if result:
-        return result
-    raise HTTPException(status_code=404, detail="Scan not found")
-
-@router.post("/report")
-def generate_report(scan_result: dict, user: dict = Depends(get_current_user)):
+@router.get("/{scan_id}", response_model=ScanResult)
+def get_scan_status(scan_id: str, db: Session = Depends(get_db)):
     """
-    Generate and download a PDF vulnerability report for a scan.
-
-    The request body should be a scan result dict (from GET /scan/{id}).
+    Get the status and results of a scan.
     """
-    import os
-    os.makedirs("reports", exist_ok=True)
-    pdf_path = generate_pdf_report(scan_result)
-    return FileResponse(
-        pdf_path,
-        media_type="application/pdf",
-        filename="aivulnhunter_report.pdf",
-    )
+    try:
+        scan_uuid = uuid.UUID(scan_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid scan ID format")
+
+    scan = crud_scans.get_scan(db, scan_uuid)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+        
+    vulnerabilities = crud_scans.get_scan_vulnerabilities(db, scan_uuid)
+    
+    results_list = [
+        {
+            "rule_id": str(v.rule_id) if v.rule_id else None,
+            "name": v.name,
+            "owasp": v.owasp,
+            "severity": v.severity,
+            "status": v.status,
+            "confidence": v.confidence,
+            "explanation": v.explanation,
+            "mitigation": v.mitigation,
+            "evidence": v.evidence
+        }
+        for v in vulnerabilities
+    ]
+        
+    return {
+        "scan_id": str(scan.id),
+        "status": scan.status,
+        "target": scan.target,
+        "profile": scan.profile,
+        "results": results_list,
+        "vulnerabilities_found": scan.vulnerabilities_found,
+        "results_url": f"/api/v1/scans/{scan_id}"
+    }
+
+@router.get("/", response_model=List[ScanResult])
+def list_scans(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    """List recent scans."""
+    scans = crud_scans.get_scans(db, offset=skip, limit=limit)
+    return [
+        {
+            "scan_id": str(s.id),
+            "status": s.status,
+            "target": s.target,
+            "vulnerabilities_found": s.vulnerabilities_found,
+            "results_url": f"/api/v1/scans/{s.id}",
+            "results": []
+        }
+        for s in scans
+    ]

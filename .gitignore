@@ -58,3 +58,15 @@ node_modules/
 htmlcov/
 .coverage
 .pytest_cache/
+
+# Process files
+*.pid
+backend/*.pid
+frontend-next/*.pid
+
+# Virtual Environment
+.venv/
+
+# Reports
+reports/
+*.pdf

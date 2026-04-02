@@ -1,5 +1,5 @@
 
-const API_BASE = "";
+const API_BASE = "http://127.0.0.1:8000/api/v1";
 
 // Store latest scan result for PDF generation
 let latestScanResult = null;
@@ -345,8 +345,8 @@ async function runAPIScan(target, token) {
   showTimeline();
 
   try {
-    // Call the scan API
-    const response = await fetch(`${API_BASE}/scan`, {
+    // Call the scan API - note: trailing slash is required
+    const response = await fetch(`${API_BASE}/scans/`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -364,28 +364,91 @@ async function runAPIScan(target, token) {
     }
 
     const data = await response.json();
-    console.log("SCAN RESULT:", data);
+    console.log("SCAN STARTED:", data);
 
-    // Store results
-    latestScanResult = data;
+    // Store scan ID
     currentScanId = data.scan_id;
-
-    // Get results from the expected format
-    const results = data.results || [];
-
-    // Render results
-    renderResults(results);
-
-    // Show download button
-    if (downloadBtn) downloadBtn.style.display = "inline-block";
-
-    // Complete timeline
-    completeAllAgents();
+    latestTarget = target;
+    
+    // Show "scanning" message
+    resultBox.innerHTML = `
+      <div class="info-box">
+        <h3>🔍 Scan Started...</h3>
+        <p>Target: ${target}</p>
+        <p>Scan ID: ${data.scan_id}</p>
+        <p>Waiting for results...</p>
+      </div>
+    `;
+    
+    // Poll for results
+    await pollForResults(data.scan_id, token);
 
   } catch (err) {
     console.error("Scan error:", err);
     handleError(err.message);
   }
+}
+
+// Poll for scan results
+async function pollForResults(scanId, token, maxAttempts = 30) {
+  const scanBtn = document.getElementById("scanBtn");
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const response = await fetch(`${API_BASE}/scans/${scanId}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch scan results");
+      }
+      
+      const data = await response.json();
+      console.log(`Poll attempt ${attempt + 1}:`, data);
+      
+      // Update progress based on status
+      if (data.status === "completed") {
+        // Scan complete - render results
+        latestScanResult = data;
+        const results = data.results || [];
+        renderResults(results);
+        
+        if (downloadBtn) downloadBtn.style.display = "inline-block";
+        completeAllAgents();
+        
+        if (scanBtn) {
+          scanBtn.disabled = false;
+          scanBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Start Scan';
+        }
+        return; // Exit polling
+      } else if (data.status === "failed") {
+        throw new Error("Scan failed on backend");
+      } else {
+        // Still running - update UI
+        const agentStatus = document.getElementById("agentStatus");
+        if (agentStatus) {
+          agentStatus.textContent = `Status: ${data.status}...`;
+        }
+        
+        const progressBar = document.getElementById("scanProgress");
+        if (progressBar) {
+          progressBar.value = (attempt / maxAttempts) * 100;
+          progressBar.style.display = "block";
+        }
+      }
+      
+      // Wait 2 seconds before next poll
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+    } catch (err) {
+      console.error("Poll error:", err);
+    }
+  }
+  
+  // Timeout - show message
+  handleError("Scan timed out. Please check results manually.");
 }
 
 // Run Dataset Upload Scan
@@ -415,7 +478,7 @@ async function runDatasetScan(file, token) {
 
       latestTarget = targetUrl;
 
-      const response = await fetch(`${API_BASE}/scan`, {
+      const response = await fetch(`${API_BASE}/scans`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -457,7 +520,7 @@ async function fetchScanResults(scanId) {
   const token = localStorage.getItem("token");
 
   try {
-    const response = await fetch(`${API_BASE}/scan/${scanId}/results`, {
+    const response = await fetch(`${API_BASE}/scans/${scanId}/results`, {
       headers: {
         "Authorization": `Bearer ${token}`
       }

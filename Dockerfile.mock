@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies if any (usually just requests/fastapi/uvicorn)
+COPY requirements.txt .
+RUN pip install --no-cache-dir requests fastapi uvicorn
+
+# Copy only the mock targets script
+COPY advanced_mock_targets.py .
+
+EXPOSE 9001
+
+CMD ["python", "advanced_mock_targets.py"]

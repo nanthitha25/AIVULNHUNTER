@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const AUTH = { Authorization: 'Bearer demo-admin-token' };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,9 +50,13 @@ interface Stats {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const fullPath = path.startsWith('/api/v1') ? path : '/api/v1' + path;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const res = await fetch(`${API_BASE}${fullPath}`, {
         ...opts,
-        headers: { 'Content-Type': 'application/json', ...AUTH, ...opts.headers },
+        headers: { 'Content-Type': 'application/json', ...authHeaders, ...opts.headers },
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
@@ -104,6 +108,14 @@ export default function AdminPage() {
         setToast({ msg, ok });
         setTimeout(() => setToast(null), 3000);
     };
+
+    const router = useRouter();
+    useEffect(() => {
+        const role = localStorage.getItem('auth_role');
+        if (role !== 'admin') {
+            router.push('/');
+        }
+    }, [router]);
 
     // ── Data loaders ──────────────────────────────────────────────────────────
 
@@ -232,8 +244,8 @@ export default function AdminPage() {
                             key={t.key}
                             onClick={() => setTab(t.key)}
                             className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-all ${tab === t.key
-                                    ? 'bg-white/10 text-white border-b-2 border-orange-400'
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-white/10 text-white border-b-2 border-orange-400'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             {t.label}
@@ -402,10 +414,10 @@ export default function AdminPage() {
                                                     onClick={() => toggleActive(u)}
                                                     disabled={u.username === 'admin'}
                                                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${u.username === 'admin'
-                                                            ? 'opacity-30 cursor-not-allowed bg-gray-600 text-gray-400'
-                                                            : u.is_active
-                                                                ? 'bg-red-600/30 hover:bg-red-600/50 text-red-300'
-                                                                : 'bg-green-600/30 hover:bg-green-600/50 text-green-300'
+                                                        ? 'opacity-30 cursor-not-allowed bg-gray-600 text-gray-400'
+                                                        : u.is_active
+                                                            ? 'bg-red-600/30 hover:bg-red-600/50 text-red-300'
+                                                            : 'bg-green-600/30 hover:bg-green-600/50 text-green-300'
                                                         }`}
                                                 >
                                                     {u.is_active ? 'Deactivate' : 'Activate'}
@@ -482,8 +494,8 @@ export default function AdminPage() {
                                                 <button
                                                     onClick={() => toggleRule(r)}
                                                     className={`px-3 py-1 rounded text-xs font-medium transition-colors ${r.enabled
-                                                            ? 'bg-red-600/30 hover:bg-red-600/50 text-red-300'
-                                                            : 'bg-green-600/30 hover:bg-green-600/50 text-green-300'
+                                                        ? 'bg-red-600/30 hover:bg-red-600/50 text-red-300'
+                                                        : 'bg-green-600/30 hover:bg-green-600/50 text-green-300'
                                                         }`}
                                                 >
                                                     {r.enabled ? 'Disable' : 'Enable'}

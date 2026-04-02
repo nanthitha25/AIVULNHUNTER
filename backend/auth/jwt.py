@@ -1,8 +1,9 @@
+import os
 from datetime import datetime, timedelta
 from jose import jwt
 
 # MUST match SECRET_KEY in backend/routes/auth.py
-SECRET_KEY = "supersecretkey123"
+SECRET_KEY = os.getenv("SECRET_KEY", "supersecureaivulnhunterkey123")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

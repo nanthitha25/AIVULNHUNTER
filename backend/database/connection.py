@@ -3,7 +3,7 @@ Database connection management for AivulnHunter
 Handles PostgreSQL connections using SQLAlchemy with async support
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -11,15 +11,16 @@ import os
 from typing import Generator
 
 # Database configuration
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/aivulnhunter"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # Local development fallback
+    DATABASE_URL = "sqlite:///./aivuln.db"
 
 # Create SQLAlchemy engine
 # For production, use connection pooling with proper settings
 engine = create_engine(
     DATABASE_URL,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {},
     pool_pre_ping=True,  # Verify connections before using
     echo=False,  # Set to True for SQL query logging during development
     future=True
@@ -76,7 +77,7 @@ def check_connection():
     """
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         return True
     except Exception as e:

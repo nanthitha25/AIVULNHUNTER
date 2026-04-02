@@ -53,26 +53,29 @@ def target_profiling(target: str) -> dict:
         # Identify target type based on URL patterns and response
         target_lower = target.lower()
         
+        # Check URL patterns for AGENT indicators
+        if "agent" in target_lower:
+            profile["type"] = "AGENT"
         # Check URL patterns for LLM indicators
-        if any(indicator in target_lower for indicator in [
+        elif any(indicator in target_lower for indicator in [
             "llm", "chat", "openai", "anthropic", "claude", 
             "gpt", "completion", "embeddings", "model"
         ]):
-            profile["type"] = "LLM"
+            profile["type"] = "LLM_API"
         # Check for API indicators
         elif any(indicator in target_lower for indicator in [
             "/api/", "/v1/", "/api/v", "/rest", "/endpoint"
         ]):
-            profile["type"] = "API"
+            profile["type"] = "REST_API"
         # Check response content-type for API indicators
         elif "application/json" in response.headers.get("content-type", "").lower():
-            profile["type"] = "API"
+            profile["type"] = "REST_API"
         else:
             profile["type"] = "WEB_APP"
         
         # Assess risk level based on target type and response
         # LLMs have higher risk due to prompt injection possibilities
-        if profile["type"] == "LLM":
+        if profile["type"] == "LLM_API":
             profile["risk_level"] = "HIGH"
         elif response.status_code >= 400:
             profile["risk_level"] = "LOW"  # Target has errors, lower immediate risk
@@ -80,7 +83,7 @@ def target_profiling(target: str) -> dict:
             profile["risk_level"] = "MEDIUM"
         
         # Additional checks for LLM-specific headers
-        if profile["type"] == "LLM":
+        if profile["type"] == "LLM_API":
             # Check for OpenAI-style headers
             if "openai-model" in response.headers:
                 profile["llm_model"] = response.headers["openai-model"]

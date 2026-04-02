@@ -1,0 +1,4 @@
+<form action="http://localhost:5678/webhook-test/resume-analyzer" method="post" enctype="multipart/form-data">
+  <input type="file" name="resume" multiple />
+  <button type="submit">Upload Resume</button>
+</form>

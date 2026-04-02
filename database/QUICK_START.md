@@ -88,4 +88,4 @@ from backend.services.scan_pipeline_db import run_scan_pipeline
 
 - Full walkthrough: See artifact `walkthrough.md`
 - Setup guide: `database/README.md`
-- Summary: `database/PHASE1_COMPLETE.md`
+- Summary: `database/PHASE1_COMPLETE.md` 

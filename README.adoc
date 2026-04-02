@@ -1,0 +1,112 @@
+= AivulnHunter: AI-Powered Vulnerability Scanner
+:toc: left
+:toclevels: 3
+:sectnums:
+:source-highlighter: highlight.js
+:icons: font
+
+== Overview
+
+*AivulnHunter* is a next-generation security testing platform designed to detect **OWASP Top 10 for LLM Applications** and **API Vulnerabilities** in real-time. By leveraging an agentic architecture and Reinforcement Learning (RL), the system continuously improves its scanning strategies based on findings.
+
+== Key Features
+
+[cols="1,3"]
+|===
+| Feature | Description
+
+| *Agentic Architecture*
+| Orchestrates specialized agents for Target Profiling, Attack Strategy, Execution, and Observation.
+
+| *OWASP Coverage*
+| Comprehensive scanners for LLM01-LLM10 (Prompt Injection, Model Theft, etc.) and critical API risks (BOLA, Mass Assignment).
+
+| *RL Driven Priorities*
+| A Reinforcement Learning engine adaptively re-prioritizes scan rules based on target responsiveness and historical success.
+
+| *Real-time Monitoring*
+| WebSocket-based progress updates for transparent scan execution.
+
+| *Production Ready*
+| Fully containerized with Docker and Docker Compose for predictable deployments.
+|===
+
+== Architecture
+
+The system consists of four primary layers working in synchronization:
+
+[mermaid]
+....
+graph TB
+    subgraph Frontend
+        UI[Next.js Dashboard]
+    end
+    subgraph Backend_APIs
+        API[FastAPI Server]
+        WS[WebSocket Manager]
+    end
+    subgraph Core_Engine
+        Pipeline[Orchestrator]
+        Agents[Agent Framework]
+        RL[RL Engine]
+    end
+    subgraph Persistence
+        DB[(PostgreSQL)]
+        Volumes[Docker Volumes]
+    end
+    UI <--> API
+    API <--> Pipeline
+    Pipeline <--> Agents
+    Agents <--> Target[External Targets]
+    Pipeline <--> RL
+    API <--> DB
+....
+
+== Getting Started (Docker)
+
+The fastest way to get AivulnHunter running is using Docker Compose.
+
+=== Prerequisites
+* Docker and Docker Compose installed.
+
+=== Quick Start
+[source,bash]
+----
+# Clone the repository
+git clone https://github.com/nanthitha25/AIVULNHUNTER.git
+cd AIVULNHUNTER
+
+# Build and start the stack
+docker-compose up -d --build
+----
+
+=== Services
+Once started, the following services are available:
+* *Frontend*: http://localhost:3000 (Next.js App)
+* *Backend API*: http://localhost:8000 (FastAPI Swagger Docs at `/docs`)
+* *Mock Targets*: http://localhost:9001 (For safe testing)
+
+== Configuration
+
+=== Environment Variables
+The system is configured primarily via `.env` or Docker environment variables:
+* `DATABASE_URL`: Connection string for PostgreSQL.
+* `NEXT_PUBLIC_API_URL`: Backend API URL for the frontend.
+* `NEXT_PUBLIC_WS_URL`: WebSocket URL for real-time tracking.
+
+== Scanning Workflow
+
+1. **Target Profiling**: The system probes the URL to identify its type (REST API, LLM, etc.).
+2. **Strategy Generation**: The RL engine selects the most relevant rules for the target.
+3. **Execution**: The Executor agent runs vulnerability tests (Injections, Auth Bypass, etc.).
+4. **Observation**: Results are analyzed, severities assigned, and mitigation steps generated.
+5. **Learning**: RL weights are updated based on valid findings.
+
+== Security Warning
+[IMPORTANT]
+====
+AivulnHunter is a security testing tool. Only use it against systems you are authorized to test. Unauthorized penetration testing is illegal and unethical.
+====
+
+== License
+This project is licensed under the Apache License 2.0.
