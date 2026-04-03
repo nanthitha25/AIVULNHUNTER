@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import uuid
@@ -57,6 +57,86 @@ async def start_scan(
         "scan_id": str(scan_db.id),
         "status": "pending",
         "target": scan_request.target,
+        "results_url": f"/api/v1/scans/{scan_db.id}",
+        "results": []
+    }
+
+@router.post("/url", response_model=ScanResult)
+async def start_url_scan(
+    scan_request: ScanCreate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Start a URL-based scan."""
+    return await start_scan(scan_request, background_tasks, db, current_user)
+
+@router.post("/api", response_model=ScanResult)
+async def start_api_scan(
+    scan_request: ScanCreate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Start an API-specific scan."""
+    # We can add API-specific profiling or rules here later if needed
+    return await start_scan(scan_request, background_tasks, db, current_user)
+
+@router.post("/upload", response_model=ScanResult)
+async def start_file_upload_scan(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    scanType: str = Form("file_upload"),
+    metadata: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Handle file upload scanning (.json, .csv).
+    Max file size: 5MB
+    """
+    # 1. Validate file extension
+    filename = file.filename or "uploaded_file"
+    if not (filename.endswith('.json') or filename.endswith('.csv')):
+        raise HTTPException(status_code=400, detail="Only .json and .csv files are supported")
+
+    # 2. Validate file size (rough check via content length if available, or reading)
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large. Max 5MB.")
+
+    # 3. Get user
+    username = current_user.get("username")
+    from backend.database.models import User
+    user_record = db.query(User).filter(User.username == username).first()
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 4. Create scan record
+    # Store content in meta_data for the pipeline to use
+    meta = {"content": content.decode("utf-8", errors="ignore"), "original_filename": filename}
+    if metadata:
+        try:
+            import json
+            meta.update(json.loads(metadata))
+        except:
+            pass
+
+    scan_db = crud_scans.create_scan(
+        db, 
+        target=filename, 
+        user_id=user_record.id, 
+        scan_type="file_upload",
+        meta_data=meta
+    )
+
+    # 5. Launch background task
+    background_tasks.add_task(run_scan_background, scan_db.id)
+
+    return {
+        "scan_id": str(scan_db.id),
+        "status": "pending",
+        "target": filename,
         "results_url": f"/api/v1/scans/{scan_db.id}",
         "results": []
     }

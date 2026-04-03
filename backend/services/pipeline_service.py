@@ -27,6 +27,7 @@ from backend.agents.plugins.agent_advanced_scanners import (
     ToolArgumentInjectionScanner, MemoryPoisoningScanner, AutonomousEscalationScanner,
     AdvancedPromptExtractionScanner, ToolChainingExfiltrationScanner
 )
+from backend.agents.plugins.file_scanners import JSONScanner, CSVScanner
 from backend.ws_manager import manager
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,8 @@ class PipelineService:
             AdvancedBOLAScanner, ParameterTamperingScanner, MassAssignmentScanner,
             InjectionFuzzScanner, AdvancedRateLimitScanner,
             ToolArgumentInjectionScanner, MemoryPoisoningScanner, AutonomousEscalationScanner,
-            AdvancedPromptExtractionScanner, ToolChainingExfiltrationScanner
+            AdvancedPromptExtractionScanner, ToolChainingExfiltrationScanner,
+            JSONScanner, CSVScanner
         ]
         for scanner_cls in scanners:
             registry.register_scanner(scanner_cls)
@@ -78,24 +80,70 @@ class PipelineService:
         crud_scans.update_scan_status(db, scan_db.id, "running", profile={})
         
         try:
-            # 2. Target Profiling
-            logger.info("Phase 1: Profiling Target")
-            await manager.send_progress(str(scan_db.id), "TargetProfiling", 10, "Profiling target...")
-            
-            profile = await self.profiler.process({"target": target})
-            
-            # Update DB with profile
-            crud_scans.update_scan_status(db, scan_db.id, "running", profile=profile)
-            
-            if not profile.get("reachable"):
-                logger.error(f"Target {target} is unreachable. Aborting.")
-                await manager.send_error(str(scan_db.id), "Target is not reachable")
-                crud_scans.update_scan_status(db, scan_db.id, "failed", profile=profile)
-                return {"scan_id": str(scan_db.id), "status": "failed", "error": "Target unreachable"}
+            # Phase 1: Target Profiling
+            if scan_db.scan_type == "file_upload":
+                logger.info("Phase 1: Profiling (Bypassed for file upload)")
+                profile = {"type": "FILE", "reachable": True, "risk_level": "MEDIUM"}
+            else:
+                logger.info("Phase 1: Profiling Target")
+                await manager.send_progress(str(scan_db.id), "TargetProfiling", 10, "Profiling target...")
+                profile = await self.profiler.process({"target": target})
+                
+                # Update DB with profile
+                crud_scans.update_scan_status(db, scan_db.id, "running", profile=profile)
+                
+                if not profile.get("reachable"):
+                    logger.error(f"Target {target} is unreachable. Aborting.")
+                    await manager.send_error(str(scan_db.id), "Target is not reachable")
+                    crud_scans.update_scan_status(db, scan_db.id, "failed", profile=profile)
+                    return {"scan_id": str(scan_db.id), "status": "failed", "error": "Target unreachable"}
 
-            await manager.send_progress(str(scan_db.id), "TargetProfiling", 25, f"Target type: {profile.get('type')}")
+                await manager.send_progress(str(scan_db.id), "TargetProfiling", 25, f"Target type: {profile.get('type')}")
 
-            # 3. Standard Strategy Generation
+            # Special case for file upload scan
+            if scan_db.scan_type == "file_upload":
+                await manager.send_progress(str(scan_db.id), "Scanner", 40, "Scanning file content...")
+                file_content = scan_db.meta_data.get("content", "")
+                target_filename = scan_db.target.lower()
+                
+                if target_filename.endswith('.json'):
+                    scanner = JSONScanner("json_scanner")
+                elif target_filename.endswith('.csv'):
+                    scanner = CSVScanner("csv_scanner")
+                else:
+                    logger.error(f"Unsupported file type for {target}")
+                    crud_scans.update_scan_status(db, scan_db.id, "failed")
+                    return {"scan_id": str(scan_id), "status": "failed", "error": "Unsupported file type"}
+                
+                scan_output = await scanner.process({"content": file_content})
+                results = scan_output.get("results", [])
+                
+                for res in results:
+                    crud_scans.add_vulnerability(
+                        db,
+                        scan_id=scan_db.id,
+                        rule_id=None,
+                        name=res["name"],
+                        owasp=res["owasp"],
+                        severity=res["severity"],
+                        status=res["status"] if "status" in res else "VULNERABLE",
+                        confidence=res["confidence_score"],
+                        explanation=res["findings"],
+                        mitigation=res["mitigation_steps"],
+                        evidence=res.get("evidence_snippet")
+                    )
+                
+                # Completion for file scan
+                crud_scans.complete_scan(
+                    db,
+                    scan_id=scan_db.id,
+                    vulnerabilities_found=len(results),
+                    total_rules_tested=1
+                )
+                await manager.send_progress(str(scan_db.id), "Scanner", 100, f"Scan complete. Found {len(results)} vulnerabilities.")
+                return {"scan_id": str(scan_db.id), "status": "completed", "vulnerabilities": len(results)}
+
+            # Phase 2: Standard Strategy Generation
             logger.info("Phase 2: Generating Attack Strategy")
             await manager.send_progress(str(scan_db.id), "Strategy", 30, "Generating attack strategy...")
             

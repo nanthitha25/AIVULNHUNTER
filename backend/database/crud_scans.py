@@ -15,7 +15,8 @@ def create_scan(
     db: Session,
     target: str,
     user_id: Optional[uuid.UUID] = None,
-    scan_type: str = "full"
+    scan_type: str = "full",
+    meta_data: Optional[dict] = None
 ) -> Scan:
     """
     Create a new scan record
@@ -25,6 +26,7 @@ def create_scan(
         target: Target URL to scan
         user_id: Optional user ID who initiated the scan
         scan_type: Type of scan (full, quick, custom)
+        meta_data: Optional metadata (e.g. file content)
     
     Returns:
         Created Scan object
@@ -33,7 +35,8 @@ def create_scan(
         target=target,
         user_id=user_id,
         scan_type=scan_type,
-        status="pending"
+        status="pending",
+        meta_data=meta_data or {}
     )
     db.add(scan)
     db.commit()
