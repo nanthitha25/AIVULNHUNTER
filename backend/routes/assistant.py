@@ -1,25 +1,39 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from services.assistant_service import ask_gemini
+from typing import Optional
+from ..ai.assistant_gemini import ask_assistant
+from ..ai.retry_wrapper import retry_call
 
 router = APIRouter()
 
-class ChatRequest(BaseModel):
-    message: str
-    scan_id: int | None = None
+class AssistantQuery(BaseModel):
+    question: str
+    scan_summary: Optional[str] = None
 
-@router.post("/assistant/chat")
-async def chat(req: ChatRequest):
-    response = ask_gemini(req.message, req.scan_id)
-    return {"response": response}
+@router.post("/assistant")
+async def ai_assistant(query: AssistantQuery):
+    """
+    API endpoint for the AI assistant. Uses retry logic to handle capacity issues.
+    Incorporates scan_summary context if provided for RAG-style responses.
+    """
+    # Build prompt context if scan_summary is available
+    if query.scan_summary:
+        full_prompt = f"""
+Scan result:
+{query.scan_summary}
 
+User question:
+{query.question}
 
-@router.get("/assistant/scan-explain/{scan_id}")
-async def explain_scan(scan_id: int):
+Please provide a detailed explanation based on the scan results above.
+"""
+    else:
+        full_prompt = query.question
 
-    response = ask_gemini(
-        "Explain the scan results in simple terms and suggest fixes",
-        scan_id
-    )
+    # Use retry_call to wrap the assistant call
+    response = retry_call(ask_assistant, full_prompt)
 
-    return {"explanation": response}
+    if response == "AI service temporarily unavailable. Please try again later.":
+         raise HTTPException(status_code=503, detail=response)
+
+    return {"answer": response}

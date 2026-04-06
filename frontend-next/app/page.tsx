@@ -90,6 +90,14 @@ export default function DashboardPage() {
   };
 
   const startNewScan = async () => {
+    // Check for authentication first
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    if (!token) {
+      alert('Authentication required: Please login or enter Demo Mode to start a scan.');
+      window.location.href = '/login';
+      return;
+    }
+
     const target = prompt('Enter target URL:');
     if (!target) return;
 
@@ -109,7 +117,8 @@ export default function DashboardPage() {
       });
     } catch (error) {
       console.error('Failed to start scan:', error);
-      alert('Failed to start scan');
+      // The error is now more likely to be a validation error or connection error than 401
+      alert('Failed to start scan: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 

@@ -29,6 +29,7 @@ from backend.agents.plugins.agent_advanced_scanners import (
 )
 from backend.agents.plugins.file_scanners import JSONScanner, CSVScanner
 from backend.ws_manager import manager
+from backend.security.ai_firewall import ai_firewall
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,55 @@ class PipelineService:
         crud_scans.update_scan_status(db, scan_db.id, "running", profile={})
         
         try:
+            # Pre-Phase: AI Firewall Layer
+            logger.info(f"Pre-Phase: AI Firewall Security Check for {target}")
+            await manager.send_progress(str(scan_db.id), "Firewall", 5, "Inspecting target for security threats...")
+            
+            # Use current target as payload for initial firewall check
+            firewall_result = await ai_firewall.inspect(target, target=target)
+            
+            if firewall_result["decision"] == "BLOCK":
+                logger.warning(f"Firewall BLOCKED scan for {target}: {firewall_result['reason']}")
+                await manager.send_error(str(scan_db.id), f"Security Blocked: {firewall_result['reason']}")
+                
+                # Analyze via Observer for consistent reporting
+                analysis = await self.observer.process({
+                    "result": {
+                        "status": "BLOCKED",
+                        "owasp": "AI-FIREWALL-BLOCK",
+                        "severity": "HIGH",
+                        "findings": f"Firewall blocked request: {firewall_result['reason']}",
+                        "mitigation": "Review the blocked payload for malicious patterns and source IP.",
+                        "is_vulnerable": True,
+                        "confidence_score": firewall_result["confidence"]
+                    },
+                    "context": {"target": target}
+                })
+
+                # Persist the block event as a vulnerability finding
+                crud_scans.add_vulnerability(
+                    db,
+                    scan_id=scan_db.id,
+                    rule_id=None,
+                    name="AI Firewall Block",
+                    owasp="AI-FIREWALL",
+                    severity=analysis["severity"],
+                    status="BLOCKED",
+                    confidence=analysis["confidence_score"],
+                    explanation=analysis["findings"],
+                    mitigation=analysis["mitigation_steps"],
+                    evidence=f"Blocked payload for target: {target}"
+                )
+                
+                # Update status to failed but with vulnerability record
+                crud_scans.update_scan_status(db, scan_db.id, "failed", profile={"firewall_blocked": True, "reason": firewall_result["reason"]})
+                return {"scan_id": str(scan_db.id), "status": "failed", "error": f"Firewall Blocked: {firewall_result['reason']}"}
+            
+            if firewall_result["decision"] == "SANITIZE":
+                logger.info(f"Firewall SANITIZED target input: {target}")
+                target = firewall_result["sanitized_payload"]
+                await manager.send_progress(str(scan_db.id), "Firewall", 8, "Input sanitized by security layer")
+
             # Phase 1: Target Profiling
             if scan_db.scan_type == "file_upload":
                 logger.info("Phase 1: Profiling (Bypassed for file upload)")
