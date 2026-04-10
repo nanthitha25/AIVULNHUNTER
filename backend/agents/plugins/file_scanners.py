@@ -3,14 +3,14 @@ import json
 import csv
 import re
 import io
-from backend.agents.base import BaseAgent
+from backend.agents.base import BaseAgent, ScannerPlugin
 
-class FileScanner(BaseAgent):
+class FileScanner(ScannerPlugin):
     """
     Base class for file-based scanners (JSON, CSV).
     """
-    def __init__(self, name: str):
-        super().__init__(name)
+    def __init__(self, agent_id: str, config: Dict[str, Any] = None):
+        super().__init__(agent_id, config)
         self.patterns = {
             "api_key": re.compile(r'(?:api_key|apikey|key|token|secret|password|passwd|pwd)[\s_]*[:=][\s_]*[\'"]?([a-zA-Z0-9_\-\.]{16,})[\'"]?', re.IGNORECASE),
             "url": re.compile(r'https?://[^\s<>"]+|www\.[^\s<>"]+', re.IGNORECASE),
@@ -19,16 +19,25 @@ class FileScanner(BaseAgent):
             "insecure_agent": re.compile(r'(?:sudo|root|exec|eval|system|subprocess|os\.system)', re.IGNORECASE)
         }
 
+    @property
+    def rules(self) -> List[str]:
+        return ["FILE_DATA_DISCLOSURE"]
+
+    async def scan(self, target: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        raise NotImplementedError("Subclasses must implement scan")
+
     async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        raise NotImplementedError("Subclasses must implement process")
+        """Keep process for direct calling if needed, redirecting to scan."""
+        return await self.scan(input_data.get("target", ""), input_data.get("context"))
 
 class JSONScanner(FileScanner):
     """
     Scanner for JSON files.
     Detects: exposed API keys, tokens, unsafe LLM prompts, prompt injection patterns, insecure agent instructions.
     """
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        content = input_data.get("content", "")
+    async def scan(self, target: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        # Implementation treats 'target' as content for file scans if passed via scan()
+        content = target or (context.get("content") if context else "")
         results = []
         
         try:
@@ -120,8 +129,8 @@ class CSVScanner(FileScanner):
     Scanner for CSV files.
     Detects: credentials in columns, insecure URLs, authentication tokens, exposed secrets.
     """
-    async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        content = input_data.get("content", "")
+    async def scan(self, target: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        content = target or (context.get("content") if context else "")
         results = []
         
         try:

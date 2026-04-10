@@ -26,10 +26,10 @@ from backend.routes.assistant import router as assistant_router
 
 # Initialize database on startup
 try:
-    from backend.database.sqlite_db import init_db
+    from backend.database.connection import init_db
     init_db()
 except ImportError:
-    logger.warning("Could not initialize database - sqlite_db.init_db not found")
+    logger.warning("Could not initialize database - init_db not found in connection")
 
 app = FastAPI(
     title="AIVulnHunter API",
@@ -60,7 +60,7 @@ app.include_router(rl_router, prefix=API_PREFIX)
 app.include_router(rl_stats_router, prefix=API_PREFIX)
 app.include_router(report_router, prefix=API_PREFIX)
 app.include_router(admin_router, prefix=API_PREFIX)
-app.include_router(assistant_router, prefix=API_PREFIX)
+app.include_router(assistant_router, prefix=f"{API_PREFIX}/assistant", tags=["Assistant"])
 app.include_router(demo_router, prefix=API_PREFIX)
 
 @app.get("/health")

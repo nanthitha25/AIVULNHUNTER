@@ -1,39 +1,115 @@
+import io
+import json
+import logging
+import pandas as pd
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
-from ..ai.assistant_gemini import ask_assistant
-from ..ai.retry_wrapper import retry_call
+from pydantic import BaseModel, Field
+
+from backend.ai.assistant import ask_assistant
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-class AssistantQuery(BaseModel):
-    question: str
-    scan_summary: Optional[str] = None
+MAX_QUESTION_LENGTH = 4000   # characters
+MAX_CONTEXT_LENGTH  = 10000  # segments
 
-@router.post("/assistant")
-async def ai_assistant(query: AssistantQuery):
+class MessageItem(BaseModel):
+    role: str
+    content: str
+
+class AssistantRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=MAX_QUESTION_LENGTH)
+    messages: Optional[List[MessageItem]] = None
+    scan_context: Optional[str] = Field(None)
+    file_type: Optional[str] = Field(None, description="Type of scan context: 'json', 'csv', or 'url'")
+
+class QuestionRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=MAX_QUESTION_LENGTH)
+
+class AssistantResponse(BaseModel):
+    model_used: str
+    response: str
+
+def process_json(content: str):
+    """Parse JSON and return a formatted string with a limit."""
+    try:
+        data = json.loads(content)
+        return json.dumps(data, indent=2)[:8000]
+    except Exception as e:
+        logger.error(f"JSON parsing failed: {e}")
+        return content[:8000]
+
+def process_csv(content: str):
+    """Parse CSV and return top 50 rows as string."""
+    try:
+        df = pd.read_csv(io.StringIO(content))
+        return df.head(50).to_string()
+    except Exception as e:
+        logger.error(f"CSV parsing failed: {e}")
+        return content[:5000]
+
+@router.post("/chat", response_model=AssistantResponse)
+async def assistant_chat_endpoint(body: AssistantRequest):
     """
-    API endpoint for the AI assistant. Uses retry logic to handle capacity issues.
-    Incorporates scan_summary context if provided for RAG-style responses.
+    Ask the AI assistant a question with multi-format input support.
     """
-    # Build prompt context if scan_summary is available
-    if query.scan_summary:
-        full_prompt = f"""
-Scan result:
-{query.scan_summary}
+    message = body.message.strip()[:4000]
+    if not message:
+        raise HTTPException(status_code=400, detail="message must not be empty")
 
-User question:
-{query.question}
+    raw_context = body.scan_context.strip() if body.scan_context else ""
+    file_type = body.file_type.lower() if body.file_type else None
 
-Please provide a detailed explanation based on the scan results above.
-"""
+    MAX_CONTEXT = 8000
+    if file_type == "json":
+        context = process_json(raw_context)
+    elif file_type == "csv":
+        context = process_csv(raw_context)
     else:
-        full_prompt = query.question
+        # Default or URL
+        context = raw_context[:MAX_CONTEXT]
 
-    # Use retry_call to wrap the assistant call
-    response = retry_call(ask_assistant, full_prompt)
+    # Double check final context length
+    context = context[:MAX_CONTEXT]
 
-    if response == "AI service temporarily unavailable. Please try again later.":
-         raise HTTPException(status_code=503, detail=response)
+    try:
 
-    return {"answer": response}
+        result = ask_assistant(message, context=context)
+        
+        if "answer" in result and "response" not in result:
+            result["response"] = result.pop("answer")
+
+        if result["model_used"] == "none":
+            logger.warning("AI Assistant providers failed. Returning fallback message.")
+            
+        return AssistantResponse(**result)
+
+    except Exception as exc:
+        logger.exception("Unexpected error in assistant endpoint: %s", exc)
+        return AssistantResponse(
+            model_used="none",
+            response="AI assistant temporarily unavailable. Please retry later.",
+        )
+
+@router.post("", response_model=AssistantResponse)
+async def assistant_question_endpoint(body: QuestionRequest):
+    """
+    Independent assistant endpoint for security questions only.
+    """
+    question = body.question.strip()
+    try:
+        # Call ask_assistant without scan context
+        result = ask_assistant(question, context="")
+        
+        if "answer" in result and "response" not in result:
+            result["response"] = result.pop("answer")
+
+        return AssistantResponse(**result)
+    except Exception as exc:
+        logger.exception("Unexpected error in assistant question endpoint: %s", exc)
+        return AssistantResponse(
+            model_used="none",
+            response="AI assistant temporarily unavailable. Please retry later.",
+        )

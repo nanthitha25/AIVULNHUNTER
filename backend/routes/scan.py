@@ -6,7 +6,7 @@ import asyncio
 
 from backend.database.connection import get_db, SessionLocal
 from backend.database import crud_scans
-from backend.schemas import ScanBase, ScanCreate, ScanResult
+from backend.schemas import ScanBase, ScanCreate, ScanResult, UrlScanRequest, FileDataScanRequest
 from backend.services.pipeline_service import pipeline_service
 
 router = APIRouter()
@@ -63,13 +63,15 @@ async def start_scan(
 
 @router.post("/url", response_model=ScanResult)
 async def start_url_scan(
-    scan_request: ScanCreate, 
+    scan_request: UrlScanRequest, 
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Start a URL-based scan."""
-    return await start_scan(scan_request, background_tasks, db, current_user)
+    # Map target to the target field expected by the pipeline
+    internal_request = ScanCreate(target=scan_request.target, scan_type="full")
+    return await start_scan(internal_request, background_tasks, db, current_user)
 
 @router.post("/api", response_model=ScanResult)
 async def start_api_scan(
@@ -131,6 +133,45 @@ async def start_file_upload_scan(
     )
 
     # 5. Launch background task
+    background_tasks.add_task(run_scan_background, scan_db.id)
+
+    return {
+        "scan_id": str(scan_db.id),
+        "status": "pending",
+        "target": filename,
+        "results_url": f"/api/v1/scans/{scan_db.id}",
+        "results": []
+    }
+
+@router.post("/upload-data", response_model=ScanResult)
+async def start_json_data_scan(
+    scan_request: FileDataScanRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Handle file scan via JSON payload (direct string data).
+    """
+    username = current_user.get("username")
+    from backend.database.models import User
+    user_record = db.query(User).filter(User.username == username).first()
+    if not user_record:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    filename = f"uploaded_{scan_request.file_type}_{uuid.uuid4().hex[:8]}"
+    
+    # Store content in meta_data for the pipeline to use
+    meta = {"content": scan_request.scan_data, "file_type": scan_request.file_type}
+
+    scan_db = crud_scans.create_scan(
+        db, 
+        target=filename, 
+        user_id=user_record.id, 
+        scan_type="file_upload",
+        meta_data=meta
+    )
+
     background_tasks.add_task(run_scan_background, scan_db.id)
 
     return {

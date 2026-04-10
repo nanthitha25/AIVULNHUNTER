@@ -10,6 +10,13 @@ class ScanBase(BaseModel):
 class ScanCreate(ScanBase):
     pass
 
+class UrlScanRequest(BaseModel):
+    target: str
+
+class FileDataScanRequest(BaseModel):
+    file_type: str
+    scan_data: str
+
 class ScanResult(BaseModel):
     scan_id: str
     target: str

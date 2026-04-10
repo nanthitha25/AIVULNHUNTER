@@ -36,42 +36,125 @@ export default function ScanDetailPage() {
     };
 
     const downloadPDF = async () => {
+        if (!scan) return;
         setDownloadingPDF(true);
         setPdfError(null);
         try {
-            const token = localStorage.getItem('auth_token');
-            const response = await fetch(
-                'http://localhost:8000/api/v1/report/generate-from-scan',
-                {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ scan_id: scanId }),
-                }
-            );
+            const { default: jsPDF } = await import('jspdf');
+            const { default: autoTable } = await import('jspdf-autotable');
 
-            if (!response.ok) {
-                const detail = await response.json().catch(() => ({ detail: response.statusText }));
-                throw new Error(detail.detail || 'Failed to generate PDF');
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Header - White Theme
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, pageWidth, 40, 'F');
+            
+            doc.setTextColor(40, 40, 40);
+            doc.setFontSize(22);
+            doc.setFont('helvetica', 'bold');
+            doc.text('AivulnHunter Security Audit', 14, 22);
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Target: ${scan.target}`, 14, 30);
+            doc.text(`Date: ${new Date().toLocaleString()}`, 14, 35);
+            
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, 40, pageWidth - 14, 40);
+
+            // Summary Section
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('1. Scan Summary', 14, 55);
+            
+            const summaryData = [
+                ['Status', scan.status.toUpperCase()],
+                ['Total Findings', scan.results.length.toString()],
+                ['Vulnerabilities', scan.results.filter(r => r.status === 'VULNERABLE').length.toString()],
+                ['Secure Checks', scan.results.filter(r => r.status === 'SECURE').length.toString()],
+                ['Duration', `${scan.duration_seconds || 0} seconds`]
+            ];
+
+            autoTable(doc, {
+                startY: 60,
+                head: [['Metric', 'Value']],
+                body: summaryData,
+                theme: 'striped',
+                headStyles: { fillColor: [100, 100, 100] as any },
+            });
+
+            // Vulnerabilities Section
+            doc.setFontSize(16);
+            doc.text('2. Detected Vulnerabilities', 14, (doc as any).lastAutoTable.finalY + 15);
+            
+            const vulnerabilities = scan.results.filter(r => r.status === 'VULNERABLE');
+            
+            if (vulnerabilities.length > 0) {
+                const tableData = vulnerabilities.map(v => [
+                    v.name,
+                    v.severity,
+                    v.owasp,
+                    `${(v.confidence * 100).toFixed(0)}%`
+                ]);
+
+                autoTable(doc, {
+                    startY: (doc as any).lastAutoTable.finalY + 20,
+                    head: [['Vulnerability', 'Severity', 'OWASP ID', 'Confidence']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [180, 0, 0] },
+                });
+            } else {
+                doc.setFontSize(10);
+                doc.text('No critical vulnerabilities detected in this scan.', 14, (doc as any).lastAutoTable.finalY + 25);
             }
 
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `aivulnhunter_scan_${scanId.slice(0, 8)}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
+            // Detailed Findings
+            let yPos = (doc as any).lastAutoTable.finalY + 20;
+            vulnerabilities.forEach((vuln, index) => {
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${index + 1}. ${vuln.name}`, 14, yPos);
+                yPos += 7;
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(80, 80, 80);
+                
+                const explanationLines = doc.splitTextToSize(`Explanation: ${vuln.explanation}`, pageWidth - 28);
+                doc.text(explanationLines, 14, yPos);
+                yPos += (explanationLines.length * 5) + 5;
+
+                const mitigationLines = doc.splitTextToSize(`Mitigation: ${vuln.mitigation}`, pageWidth - 28);
+                doc.text(mitigationLines, 14, yPos);
+                yPos += (mitigationLines.length * 5) + 10;
+            });
+
+            // Footer
+            const pageCount = (doc as any).internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150, 150, 150);
+                doc.text(`AivulnHunter Security Report - Page ${i} of ${pageCount}`, pageWidth / 2, 285, { align: 'center' });
+            }
+
+            doc.save(`aivulnhunter_scan_${scanId.slice(0, 8)}.pdf`);
         } catch (err) {
+            console.error('PDF Generation Error:', err);
             setPdfError(err instanceof Error ? err.message : 'PDF generation failed');
         } finally {
             setDownloadingPDF(false);
         }
     };
+
 
     const getSeverityColor = (severity: string) => {
         const colors = {

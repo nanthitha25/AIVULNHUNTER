@@ -1,0 +1,17 @@
+=== Test 1: URL Input ===
+{
+  "model_used": "none",
+  "response": "AI service temporarily unavailable. Please verify API keys and internet connection."
+}
+
+=== Test 2: JSON Input ===
+{
+  "model_used": "none",
+  "response": "AI service temporarily unavailable. Please verify API keys and internet connection."
+}
+
+=== Test 3: CSV Input ===
+{
+  "model_used": "none",
+  "response": "AI service temporarily unavailable. Please verify API keys and internet connection."
+}

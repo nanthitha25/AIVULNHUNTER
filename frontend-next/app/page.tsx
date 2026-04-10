@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import { api, type Scan } from '@/lib/api';
 import { wsManager, type ProgressUpdate } from '@/lib/websocket';
 import Link from 'next/link';
+import ScanModal from './components/ScanModal';
 
 interface VulnerabilityStats {
-  CRITICAL: number;
-  HIGH: number;
-  MEDIUM: number;
-  LOW: number;
-  INFO: number;
+    CRITICAL: number;
+    HIGH: number;
+    MEDIUM: number;
+    LOW: number;
+    INFO: number;
 }
 
 export default function DashboardPage() {
@@ -26,38 +27,33 @@ export default function DashboardPage() {
   const [currentScan, setCurrentScan] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressUpdate | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
 
   useEffect(() => {
-    setIsAuthenticated(!!localStorage.getItem('auth_token'));
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    setIsAuthenticated(!!token);
     loadDashboardData();
 
-    // Subscribe to WebSocket updates
-    const handleError = (error: string) => {
-      console.error('WebSocket error:', error);
-    };
-    wsManager.subscribeToErrors(handleError);
-
     return () => {
-      wsManager.unsubscribeFromErrors(handleError);
+      wsManager.disconnect();
     };
   }, []);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await api.getScanHistory(5, 0);
-      setRecentScans(data.scans);
-
-      // Calculate vulnerability stats from recent scans
-      // In a real app, this would come from a dedicated stats endpoint
-      const mockStats: VulnerabilityStats = {
-        CRITICAL: Math.floor(Math.random() * 10),
-        HIGH: Math.floor(Math.random() * 20),
-        MEDIUM: Math.floor(Math.random() * 30),
-        LOW: Math.floor(Math.random() * 40),
-        INFO: Math.floor(Math.random() * 50),
-      };
-      setStats(mockStats);
+      const { scans } = await api.getScanHistory(5);
+      setRecentScans(scans);
+      
+      const newStats = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 };
+      scans.forEach(scan => {
+          if (scan.vulnerabilities_found > 0) {
+              newStats.HIGH += scan.vulnerabilities_found;
+          } else {
+              newStats.INFO += 1;
+          }
+      });
+      setStats(newStats);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -67,58 +63,74 @@ export default function DashboardPage() {
 
   const handleDemoLogin = async () => {
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${API_BASE}/api/v1/auth/demo-login`, {
+      setLoading(true);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/auth/demo-login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
-
-      if (!res.ok) {
-        throw new Error('Demo login failed');
-      }
-
+      
+      if (!res.ok) throw new Error('Demo login failed');
+      
       const data = await res.json();
       localStorage.setItem('auth_token', data.access_token);
       localStorage.setItem('auth_role', data.role);
-      localStorage.setItem('is_demo', 'true'); // Flag to show banner
-
-      window.location.reload();
-    } catch (err: any) {
-      console.error(err.message);
-      alert('Failed to enter Demo Mode');
+      
+      setIsAuthenticated(true);
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Demo login failed:', error);
+      alert('Failed to enter demo mode. Is the backend running?');
+    } finally {
+      setLoading(false);
     }
   };
 
   const startNewScan = async () => {
-    // Check for authentication first
     const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     if (!token) {
       alert('Authentication required: Please login or enter Demo Mode to start a scan.');
       window.location.href = '/login';
       return;
     }
+    setIsScanModalOpen(true);
+  };
 
-    const target = prompt('Enter target URL:');
-    if (!target) return;
-
+  const handleScanConfirmation = async (data: { scan_context: string; file_type: string; file_name?: string }) => {
     try {
-      const result = await api.startScan(target);
-      setCurrentScan(result.scan_id);
-
-      // Connect to WebSocket for progress updates
-      wsManager.connect(result.scan_id);
-      wsManager.subscribe(result.scan_id, (update) => {
-        setProgress(update);
-      });
-      wsManager.subscribeToComplete(result.scan_id, () => {
-        setProgress(null);
-        setCurrentScan(null);
-        loadDashboardData();
-      });
-    } catch (error) {
+      setCurrentScan('loading');
+      let response;
+      if (data.file_type === 'url') {
+        response = await api.startUrlScan(data.scan_context);
+      } else {
+        response = await api.startFileUploadScan(data.file_type, data.scan_context);
+      }
+      
+      if (response && response.scan_id) {
+        const scanId = response.scan_id;
+        setCurrentScan(scanId);
+        
+        // Connect and subscribe to WebSocket updates
+        wsManager.connect(scanId);
+        wsManager.subscribe(scanId, (update: ProgressUpdate) => {
+          setProgress(update);
+          if (update.progress === 100) {
+            setTimeout(() => {
+              setCurrentScan(null);
+              setProgress(null);
+              loadDashboardData();
+              wsManager.unsubscribe(scanId);
+            }, 2000);
+          }
+        });
+      }
+    } catch (error: any) {
       console.error('Failed to start scan:', error);
-      // The error is now more likely to be a validation error or connection error than 401
-      alert('Failed to start scan: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      if (error.message === 'Unauthorized') {
+        setIsAuthenticated(false);
+        alert('Your session has expired. Please enter Demo Mode again.');
+      } else {
+        alert('Failed to start scan. Please try again.');
+      }
+      setCurrentScan(null);
     }
   };
 
@@ -311,6 +323,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Scan Modal */}
+      <ScanModal
+        isOpen={isScanModalOpen}
+        onClose={() => setIsScanModalOpen(false)}
+        onStartScan={handleScanConfirmation}
+      />
     </div>
   );
 }
