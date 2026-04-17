@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.ai.assistant import ask_assistant
+from backend.security.ai_firewall import ai_firewall
 
 logger = logging.getLogger(__name__)
 
@@ -54,28 +55,54 @@ def process_csv(content: str):
 async def assistant_chat_endpoint(body: AssistantRequest):
     """
     Ask the AI assistant a question with multi-format input support.
+    Protected by AI Firewall.
     """
     message = body.message.strip()[:4000]
     if not message:
         raise HTTPException(status_code=400, detail="message must not be empty")
 
-    raw_context = body.scan_context.strip() if body.scan_context else ""
+    # 1. AI Firewall Inspection
+    # We inspect the message and the context together if possible
+    firewall_decision = await ai_firewall.inspect(
+        {"message": message, "context": body.scan_context}, 
+        target="Assistant-Chat"
+    )
+    
+    if firewall_decision["decision"] == "BLOCK":
+        return AssistantResponse(
+            model_used="firewall",
+            response=f"🛑 Security Block: {firewall_decision['reason']}. Input violates security policies."
+        )
+    
+    # Update message if sanitized
+    if firewall_decision["decision"] == "SANITIZE":
+        # Since we passed a dict, we might need to extract the sanitized message
+        # But for simplicity, we reload if it was a json string or just use the sanitized version
+        try:
+            sanitized_data = json.loads(firewall_decision["sanitized_payload"])
+            message = sanitized_data.get("message", message)
+            raw_context = sanitized_data.get("context", body.scan_context)
+        except:
+            message = firewall_decision["sanitized_payload"]
+            raw_context = body.scan_context
+    else:
+        raw_context = body.scan_context
+
     file_type = body.file_type.lower() if body.file_type else None
 
     MAX_CONTEXT = 8000
     if file_type == "json":
-        context = process_json(raw_context)
+        context = process_json(raw_context or "")
     elif file_type == "csv":
-        context = process_csv(raw_context)
+        context = process_csv(raw_context or "")
     else:
         # Default or URL
-        context = raw_context[:MAX_CONTEXT]
+        context = (raw_context or "")[:MAX_CONTEXT]
 
     # Double check final context length
     context = context[:MAX_CONTEXT]
 
     try:
-
         result = ask_assistant(message, context=context)
         
         if "answer" in result and "response" not in result:
@@ -97,8 +124,22 @@ async def assistant_chat_endpoint(body: AssistantRequest):
 async def assistant_question_endpoint(body: QuestionRequest):
     """
     Independent assistant endpoint for security questions only.
+    Protected by AI Firewall.
     """
     question = body.question.strip()
+    
+    # 1. AI Firewall Inspection
+    firewall_decision = await ai_firewall.inspect(question, target="Assistant-Question")
+    
+    if firewall_decision["decision"] == "BLOCK":
+        return AssistantResponse(
+            model_used="firewall",
+            response=f"🛑 Security Block: {firewall_decision['reason']}. Your question was flagged as a security threat."
+        )
+    
+    if firewall_decision["decision"] == "SANITIZE":
+        question = firewall_decision["sanitized_payload"]
+
     try:
         # Call ask_assistant without scan context
         result = ask_assistant(question, context="")

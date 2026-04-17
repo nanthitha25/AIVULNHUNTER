@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "=== Test 1: URL Input ==="
-curl -s -X POST http://localhost:8000/assistant/chat \
+curl -s -X POST http://localhost:8000/api/v1/assistant/chat \
 -H "Content-Type: application/json" \
 -d '{
 "message": "Analyze this target for vulnerabilities",
@@ -9,7 +9,7 @@ curl -s -X POST http://localhost:8000/assistant/chat \
 }' | jq .
 
 echo -e "\n=== Test 2: JSON Input ==="
-curl -s -X POST http://localhost:8000/assistant/chat \
+curl -s -X POST http://localhost:8000/api/v1/assistant/chat \
 -H "Content-Type: application/json" \
 -d '{
 "message": "Analyze this scan result",
@@ -18,7 +18,7 @@ curl -s -X POST http://localhost:8000/assistant/chat \
 }' | jq .
 
 echo -e "\n=== Test 3: CSV Input ==="
-curl -s -X POST http://localhost:8000/assistant/chat \
+curl -s -X POST http://localhost:8000/api/v1/assistant/chat \
 -H "Content-Type: application/json" \
 -d '{
 "message": "Identify vulnerabilities",

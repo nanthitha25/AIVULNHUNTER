@@ -1,16 +1,22 @@
 import re
 import logging
 import json
-import asyncio
+import os
 from datetime import datetime
 from typing import Dict, Any, Union
+from pathlib import Path
 
-# Set up dedicated firewall logger
+# Setup dedicated firewall logger
 firewall_logger = logging.getLogger("ai_firewall")
 firewall_logger.setLevel(logging.INFO)
 
-# Ensure backend/logs/firewall.log exists and is written to
-handler = logging.FileHandler("backend/logs/firewall.log")
+# Ensure log directory exists
+log_dir = Path("backend/logs")
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / "firewall.log"
+
+# Define handler
+handler = logging.FileHandler(str(log_file))
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 firewall_logger.addHandler(handler)
@@ -54,6 +60,7 @@ class AIFirewall:
             "API_KEY": "[REDACTED_KEY]",
             "SECRET": "[REDACTED_SECRET]",
             "PASSWORD": "[REDACTED_PASS]",
+            "AUTH_TOKEN": "[REDACTED_TOKEN]",
         }
 
     async def inspect(self, payload: Union[str, Dict[str, Any]], target: str = "Unknown") -> Dict[str, Any]:
@@ -62,7 +69,12 @@ class AIFirewall:
         Supports REST APIs, LLM prompts, and Tool Commands.
         """
         # Ensure payload is a string for regex matching
-        payload_str = str(payload) if not isinstance(payload, str) else payload
+        if isinstance(payload, dict):
+            # Serialize dict to string for pattern matching
+            payload_str = json.dumps(payload)
+        else:
+            payload_str = str(payload)
+            
         payload_lower = payload_str.lower()
 
         # 1. Prompt Injection Detection
@@ -81,23 +93,29 @@ class AIFirewall:
                 return self._block("Data Exfiltration Attempt", pattern, target, payload_str)
 
         # 4. BOLA Check (Example: GET /users/2 while user1)
-        # This is logic-heavy, but we can detect common BOLA path manipulation
         if isinstance(payload, dict):
             url = payload.get("url", "")
-            method = payload.get("method", "GET")
             user_id = payload.get("user_id")
             
-            # Simple heuristic: If URL has a numeric ID that doesn't match the user_id (if provided)
-            # This is a placeholder for more advanced BOLA logic
+            # Detect simple BOLA path manipulation
             path_ids = re.findall(r"/users/(\d+)", url)
             if path_ids and user_id and str(user_id) != path_ids[0]:
                 return self._block("BOLA Access Manipulation", f"URL ID {path_ids[0]} vs User {user_id}", target, url)
 
-        # 5. Sanitization Logic
+        # 5. Sanitization Logic (Redacts both label and value)
         sanitized_payload = payload_str
         needs_sanitization = False
+        
         for key, replacement in self.sanitization_map.items():
-            if key in payload_str.upper():
+            # Match variations like: KEY=value, KEY: value, "KEY": "value"
+            # Using regex to find the key and its following value
+            pattern = rf'(?i)({re.escape(key)}[\s_]*[:=][\s_]*[\'"]?)([a-zA-Z0-9_\-\.]{{4,}})([\'"]?)'
+            
+            if re.search(pattern, sanitized_payload):
+                sanitized_payload = re.sub(pattern, rf'\1{replacement}\3', sanitized_payload)
+                needs_sanitization = True
+            elif key.upper() in sanitized_payload.upper():
+                # Fallback: Redact just the key if format is non-standard but key present
                 sanitized_payload = re.sub(re.escape(key), replacement, sanitized_payload, flags=re.IGNORECASE)
                 needs_sanitization = True
 

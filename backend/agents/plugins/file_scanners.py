@@ -9,7 +9,7 @@ class FileScanner(ScannerPlugin):
     """
     Base class for file-based scanners (JSON, CSV).
     """
-    def __init__(self, agent_id: str, config: Dict[str, Any] = None):
+    def __init__(self, agent_id: str, config: Dict[str, Any] = None, **kwargs):
         super().__init__(agent_id, config)
         self.patterns = {
             "api_key": re.compile(r'(?:api_key|apikey|key|token|secret|password|passwd|pwd)[\s_]*[:=][\s_]*[\'"]?([a-zA-Z0-9_\-\.]{16,})[\'"]?', re.IGNORECASE),
@@ -33,8 +33,14 @@ class FileScanner(ScannerPlugin):
 class JSONScanner(FileScanner):
     """
     Scanner for JSON files.
-    Detects: exposed API keys, tokens, unsafe LLM prompts, prompt injection patterns, insecure agent instructions.
     """
+    def __init__(self, agent_id: str = "JSONScanner", config: Dict[str, Any] = None, **kwargs):
+        super().__init__(agent_id, config, **kwargs)
+
+    @property
+    def rules(self) -> List[str]:
+        return ["LLM06:SensitiveDisclosureScanner", "AGENT01:ToolArgumentInjectionScanner"]
+
     async def scan(self, target: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         # Implementation treats 'target' as content for file scans if passed via scan()
         content = target or (context.get("content") if context else "")
@@ -111,24 +117,17 @@ class JSONScanner(FileScanner):
                 "evidence_snippet": val_str[:100]
             })
 
-        # Check for insecure agent instructions
-        if self.patterns["insecure_agent"].search(val_str):
-            results.append({
-                "name": "Insecure Agent Instructions",
-                "owasp": "LLM07: Insecure Plugin Design",
-                "severity": "HIGH",
-                "is_vulnerable": True,
-                "confidence_score": 0.8,
-                "findings": f"Insecure agent instructions (e.g., shell execution) detected at {path}.",
-                "mitigation_steps": "Restrict agent permissions and use sandboxed environments.",
-                "evidence_snippet": val_str[:100]
-            })
-
 class CSVScanner(FileScanner):
     """
     Scanner for CSV files.
-    Detects: credentials in columns, insecure URLs, authentication tokens, exposed secrets.
     """
+    def __init__(self, agent_id: str = "CSVScanner", config: Dict[str, Any] = None, **kwargs):
+        super().__init__(agent_id, config, **kwargs)
+
+    @property
+    def rules(self) -> List[str]:
+        return ["LLM06:SensitiveDisclosureScanner"]
+
     async def scan(self, target: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         content = target or (context.get("content") if context else "")
         results = []
@@ -169,17 +168,3 @@ class CSVScanner(FileScanner):
                 "mitigation_steps": "Remove sensitive credentials from CSV files. Use secure storage.",
                 "evidence_snippet": f"Column: {header}, Row: {row_index+1}"
             })
-
-        # Check for insecure URLs
-        if self.patterns["url"].search(val_str):
-            if "http://" in val_str.lower():
-                results.append({
-                    "name": "Insecure HTTP URL",
-                    "owasp": "A02:2021-Cryptographic Failures",
-                    "severity": "MEDIUM",
-                    "is_vulnerable": True,
-                    "confidence_score": 1.0,
-                    "findings": f"Insecure HTTP URL found in column '{header}' at row {row_index+1}.",
-                    "mitigation_steps": "Use HTTPS instead of HTTP for all URLs.",
-                    "evidence_snippet": val_str[:100]
-                })

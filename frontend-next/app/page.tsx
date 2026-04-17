@@ -64,7 +64,7 @@ export default function DashboardPage() {
   const handleDemoLogin = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/auth/demo-login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/auth/demo-login`, {
         method: 'POST',
       });
       
