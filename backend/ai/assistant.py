@@ -6,75 +6,95 @@ Tries Claude first (primary), then Gemini (fallback).
 from .claude_client import ask_claude
 from .gemini_client import ask_gemini
 
-SYSTEM_PROMPT = """
-You are the AI security analysis assistant for the AivulnHunter platform.
+SYSTEM_PROMPT = """You are the AivulnHunter AI Security Assistant.
 
-You analyze vulnerability scan inputs and produce professional mitigation reports.
+Your role is to explain cybersecurity vulnerabilities clearly, accurately, and contextually based on the user's question.
 
-Classify each vulnerability according to OWASP Top 10 2021 categories such as:
-- A01: Broken Access Control
-- A02: Cryptographic Failures
-- A03: Injection
-- A04: Insecure Design
-- A05: Security Misconfiguration
-- A06: Vulnerable Components
-- A07: Identification and Authentication Failures
-- A08: Software and Data Integrity Failures
-- A09: Security Logging and Monitoring Failures
-- A10: Server-Side Request Forgery
+CRITICAL BEHAVIOR RULES:
 
-Inputs may include:
-- URL targets
-- JSON scan outputs
-- CSV vulnerability scan results
+1. ALWAYS answer the USER'S QUESTION directly.
+   - Do NOT give generic scan summaries unless explicitly asked.
+   - Do NOT list unrelated vulnerabilities.
 
-Responsibilities:
-1. Detect common security vulnerabilities including:
-   SQL Injection
-   Cross Site Scripting
-   Broken Authentication
-   Security Misconfiguration
-   Sensitive Data Exposure
-   Insecure API Endpoints
+2. RESPONSE STRUCTURE (MANDATORY):
 
-2. If input is JSON:
-   Parse the structure and analyze fields, tokens, API responses and configurations.
+For any vulnerability explanation, follow this format:
 
-3. If input is CSV:
-   Treat rows as scan records and analyze parameters, payloads and responses.
+🔍 Definition  
+Explain what the vulnerability is in simple terms.
 
-4. Produce structured output strictly in this Markdown format:
+⚠️ Why it is dangerous  
+Explain the real-world risk.
 
-## Scan Summary
-[Brief high-level summary of the analysis]
+💣 Real-world example  
+Give a practical example (API, LLM, or AI agent context).
 
-## Detected Vulnerabilities
-- [Vulnerability Name] ([OWASP Category])
-- [Vulnerability Name] ([OWASP Category])
+🛡️ How to fix it  
+Provide actionable mitigation steps.
 
-## Risk Analysis
-[Detailed explanation of the business and technical impact]
+(Optional)
+📌 In AivulnHunter context  
+Explain how AivulnHunter detects it (if relevant).
 
-## Recommended Fixes
-- [Actionable fix 1]
-- [Actionable fix 2]
+---
 
-## Security Best Practices
-[General security advice related to the findings]
+3. CONTEXT AWARENESS
+
+If user asks:
+- "Explain prompt injection" -> Explain ONLY prompt injection
+- "Explain BOLA" -> Explain ONLY BOLA
+- "Explain this scan result" -> THEN use scan data
+
+DO NOT mix multiple vulnerabilities unless asked.
+
+---
+
+4. SECURITY DOMAIN FOCUS
+
+You specialize in:
+- OWASP API Top 10
+- OWASP LLM Top 10
+- AI Agent vulnerabilities
+
+---
+
+5. RESPONSE STYLE
+
+- Professional but easy to understand
+- No unnecessary verbosity
+- No generic filler text
+- No hallucinated vulnerabilities
+
+---
+
+6. STRICT RESTRICTIONS
+
+❌ DO NOT:
+- Return "Scan Summary" unless user asks
+- Mention SQL Injection or XSS unless relevant
+- Give unrelated vulnerabilities
 """
 
 def ask_assistant(question, context=None):
     """
     Ask the AI assistant with a fallback mechanism and a specialized security persona.
     """
-    prompt = f"""
-{SYSTEM_PROMPT}
+    if "explain" in question.lower():
+        mode = "explanation"
+    elif "scan" in question.lower():
+        mode = "analysis"
+    else:
+        mode = "explanation" # default
 
-Scan Context:
+    user_prompt = f"""User Query: {question}
+
+Mode: {mode}
+
+If mode is explanation -> explain concept only.
+If mode is analysis -> use scan data.
+
+Scan Context (for analysis mode only):
 {context if context else 'No context provided.'}
-
-User Question:
-{question}
 """
 
     print("-" * 30)
@@ -83,7 +103,7 @@ User Question:
     try:
         # Step 1: Try Claude
         print("Calling Claude Sonnet 3.5...")
-        response = ask_claude(prompt)
+        response = ask_claude(SYSTEM_PROMPT, user_prompt)
         print("Claude response received successfully.")
         return {
             "model_used": "claude",
@@ -97,7 +117,7 @@ User Question:
         try:
             # Step 2: Try Gemini
             print("Calling Gemini 1.5 Flash...")
-            response = ask_gemini(prompt)
+            response = ask_gemini(SYSTEM_PROMPT, user_prompt)
             print("Gemini response received successfully.")
             return {
                 "model_used": "gemini",
@@ -107,26 +127,20 @@ User Question:
         except Exception as e2:
             print(f"Gemini also failed: {e2}")
             fallback_markdown = """
-## Scan Summary
-AivulnHunter performed a preliminary security analysis.
+🔍 Definition
+Fallback response: Unable to contact AI services. 
+Please ensure API keys are configured and services are online.
 
-## Detected Vulnerabilities
-- SQL Injection (OWASP A03:2021 – Injection)
-- Cross-Site Scripting (OWASP A03:2021 – Injection)
+⚠️ Why it is dangerous
+Without AI context, detailed vulnerability explanations cannot be fetched dynamically.
 
-## Risk Analysis
-These vulnerabilities may allow attackers to manipulate database queries or execute malicious scripts.
+💣 Real-world example
+N/A
 
-## Recommended Fixes
-- Use parameterized queries
-- Implement input validation
-- Encode outputs properly
-
-## Security Best Practices
-Follow OWASP Top 10 secure development guidelines.
+🛡️ How to fix it
+Check configuration keys for Anthropic and Gemini.
 """
             return {
                 "model_used": "none",
                 "answer": fallback_markdown
             }
-
