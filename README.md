@@ -111,31 +111,31 @@ flowchart TD
     end
 
     %% Client Interactions
-    UI -->|POST /api/v1/scans| Router
-    WSClient <-->|ws://.../ws/scan/{id}| WSManager
-    AIChat -->|POST /api/v1/assistant/chat| Router
+    UI -->|"POST /api/v1/scans"| Router
+    WSClient <-->|"WebSocket /ws/scan/:id"| WSManager
+    AIChat -->|"POST /api/v1/assistant/chat"| Router
 
     %% Backend Routing & Pre-check
     Router --> AuthGuard
     Router --> Firewall
-    Firewall -->|Sanitized Target & Payload| Agents
+    Firewall -->|"Sanitized Target & Payload"| Agents
 
     %% Sequential Agent Flow
-    Profiler -->|Target Classification & Risk Tier| Strategy
-    Strategy -->|Optimized Attack Plan| Executor
-    Executor -->|Payload Execution| MCPAgent
-    Executor -->|Raw Traces & HTTP Responses| Observer
-    Observer -->|RL Reward Feedback (+2, +1, -0.1)| RL
-    RL -->|Priority Weights| DB
-    Observer -->|Validated Vulnerabilities| DB
+    Profiler -->|"Target Classification & Risk Tier"| Strategy
+    Strategy -->|"Optimized Attack Plan"| Executor
+    Executor -->|"Payload Execution"| MCPAgent
+    Executor -->|"Raw Traces & HTTP Responses"| Observer
+    Observer -->|"RL Reward Feedback (+2, +1, -0.1)"| RL
+    RL -->|"Priority Weights"| DB
+    Observer -->|"Validated Vulnerabilities"| DB
 
     %% Real-Time Telemetry
-    Agents -.->|Progress % & Stage Updates| WSManager
-    WSManager -.->|Live JSON Event Streaming| WSClient
+    Agents -.->|"Progress % & Stage Updates"| WSManager
+    WSManager -.->|"Live JSON Event Streaming"| WSClient
 
     %% Copilot
     AIChat --> RAG
-    RAG -->|OWASP Context & Findings| AICascade
+    RAG -->|"OWASP Context & Findings"| AICascade
 ```
 
 ---
